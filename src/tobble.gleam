@@ -1,3 +1,4 @@
+import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/result
@@ -25,11 +26,25 @@ pub type BuilderError {
 }
 
 type RenderContext(o) {
-  RenderContext(output: RenderOutput(o), minimum_column_widths: List(Int))
+  RenderContext(
+    output: RenderOutput(o),
+    minimum_column_widths: List(Int),
+    lookup_element: fn(TableElement) -> String,
+  )
 }
 
 type RenderOutput(a) {
   RenderOutput(state: a, append: fn(RenderOutput(a), String) -> RenderOutput(a))
+}
+
+type TableElement {
+  HorizontalLineElement
+  VerticalLineElement
+  FourWayJunctionElement
+  StartJunctionElement
+  EndJunctionElement
+  TopJunctionElement
+  BottomJunctionElement
 }
 
 pub fn builder() -> builder.Builder {
@@ -55,6 +70,7 @@ pub fn render(table table: Table) -> String {
     RenderContext(
       output: string_tree_render_output(),
       minimum_column_widths: column_lengths(table.rows),
+      lookup_element: lookup_ascii_table_element,
     )
     |> render_horizontal_rule()
     |> render_newline()
@@ -100,15 +116,19 @@ fn render_text(context: RenderContext(o), text: String) -> RenderContext(o) {
 }
 
 fn render_horizontal_rule(context: RenderContext(o)) -> RenderContext(o) {
+  // TODO: this should be position aware
+  let junction = context.lookup_element(TopJunctionElement)
+  let horizontal = context.lookup_element(HorizontalLineElement)
+
   let rule =
     list.fold(
       over: context.minimum_column_widths,
-      from: string_tree.from_string(junction()),
+      from: string_tree.from_string(junction),
       with: fn(acc, width) {
         acc
         // +2 for padding on each side
-        |> string_tree.append(string.repeat(horizontal(), width + 2))
-        |> string_tree.append(junction())
+        |> string_tree.append(string.repeat(horizontal, width + 2))
+        |> string_tree.append(junction)
       },
     )
     |> string_tree.to_string()
@@ -157,6 +177,7 @@ fn render_rows(
           // Can't be a record update until https://github.com/gleam-lang/gleam/pull/3773
           RenderContext(
             minimum_column_widths: context.minimum_column_widths,
+            lookup_element: context.lookup_element,
             output: string_tree_render_output(),
           ),
           row,
@@ -174,36 +195,33 @@ fn render_row(
   context: RenderContext(o),
   column_text: List(String),
 ) -> RenderContext(o) {
+  let start_separator = context.lookup_element(VerticalLineElement) <> " "
+  let center_separator =
+    " " <> context.lookup_element(VerticalLineElement) <> " "
+  let end_separator = " " <> context.lookup_element(VerticalLineElement)
+
   let row =
     list.map2(column_text, context.minimum_column_widths, fn(column, width) {
       column
       |> string.pad_end(to: width, with: " ")
       |> string_tree.from_string()
     })
-    |> string_tree.join(center_separator())
-    |> string_tree.prepend(start_separator())
-    |> string_tree.append(end_separator())
+    |> string_tree.join(center_separator)
+    |> string_tree.prepend(start_separator)
+    |> string_tree.append(end_separator)
     |> string_tree.to_string()
 
   render_text(context, row)
 }
 
-fn horizontal() -> String {
-  "-"
-}
-
-fn start_separator() -> String {
-  "| "
-}
-
-fn end_separator() -> String {
-  " |"
-}
-
-fn center_separator() -> String {
-  " | "
-}
-
-fn junction() -> String {
-  "+"
+fn lookup_ascii_table_element(element: TableElement) -> String {
+  case element {
+    HorizontalLineElement -> "-"
+    VerticalLineElement -> "|"
+    FourWayJunctionElement -> "+"
+    StartJunctionElement -> "+"
+    EndJunctionElement -> "+"
+    TopJunctionElement -> "+"
+    BottomJunctionElement -> "+"
+  }
 }
