@@ -24,6 +24,13 @@ pub type BuilderError {
   InconsistentColumnCountError(expected: Int, got: Int)
 }
 
+type RenderContext {
+  RenderContext(
+    output_tree: string_tree.StringTree,
+    minimum_column_widths: List(Int),
+  )
+}
+
 pub fn builder() -> builder.Builder {
   builder.new()
 }
@@ -43,15 +50,18 @@ pub fn build(with builder: builder.Builder) -> Result(Table, BuilderError) {
 }
 
 pub fn render(table table: Table) -> String {
-  let column_lengths = column_lengths(table.rows)
+  let rendered_context =
+    RenderContext(
+      output_tree: string_tree.new(),
+      minimum_column_widths: column_lengths(table.rows),
+    )
+    |> render_horizontal_rule()
+    |> render_newline()
+    |> render_rows_with_header(table.rows)
+    |> render_newline()
+    |> render_horizontal_rule()
 
-  string_tree.new()
-  |> render_horizontal_rule(column_lengths)
-  |> render_newline()
-  |> render_rows_with_header(table.rows, column_lengths)
-  |> render_newline()
-  |> render_horizontal_rule(column_lengths)
-  |> string_tree.to_string()
+  string_tree.to_string(rendered_context.output_tree)
 }
 
 pub fn render_with_options(
@@ -78,80 +88,87 @@ fn column_lengths(rows: rows.Rows(String)) {
   })
 }
 
-fn render_horizontal_rule(
-  tree: string_tree.StringTree,
-  column_stops: List(Int),
-) -> string_tree.StringTree {
-  list.fold(
-    over: column_stops,
-    from: string_tree.append(tree, junction()),
-    with: fn(acc, width) {
-      acc
-      // +2 for padding on each side
-      |> string_tree.append(string.repeat(horizontal(), width + 2))
-      |> string_tree.append(junction())
-    },
-  )
+fn render_horizontal_rule(context: RenderContext) -> RenderContext {
+  let upd_tree =
+    list.fold(
+      over: context.minimum_column_widths,
+      from: string_tree.append(context.output_tree, junction()),
+      with: fn(acc, width) {
+        acc
+        // +2 for padding on each side
+        |> string_tree.append(string.repeat(horizontal(), width + 2))
+        |> string_tree.append(junction())
+      },
+    )
+
+  RenderContext(..context, output_tree: upd_tree)
 }
 
-fn render_newline(tree: string_tree.StringTree) -> string_tree.StringTree {
-  string_tree.append(tree, "\n")
+fn render_newline(context: RenderContext) -> RenderContext {
+  let upd_tree = string_tree.append(context.output_tree, "\n")
+
+  RenderContext(..context, output_tree: upd_tree)
 }
 
 fn render_rows_with_header(
-  main_tree: string_tree.StringTree,
+  context: RenderContext,
   rows: rows.Rows(String),
-  column_stops: List(Int),
-) -> string_tree.StringTree {
+) -> RenderContext {
   case rows.pop_row(rows) {
-    // No rows, just give an empty builder
-    Error(Nil) -> string_tree.new()
+    // No rows, so no change needed
+    Error(Nil) -> context
     Ok(#(head_row, rest_rows)) -> {
-      main_tree
-      |> render_header(head_row, column_stops)
+      context
+      |> render_header(head_row)
       |> render_newline()
-      |> render_rows(rest_rows, column_stops)
+      |> render_rows(rest_rows)
     }
   }
 }
 
 fn render_header(
-  tree: string_tree.StringTree,
+  context: RenderContext,
   column_text: List(String),
-  column_stops: List(Int),
-) -> string_tree.StringTree {
-  tree
-  |> render_row(column_text, column_stops)
+) -> RenderContext {
+  context
+  |> render_row(column_text)
   |> render_newline()
-  |> render_horizontal_rule(column_stops)
+  |> render_horizontal_rule()
 }
 
-fn render_rows(
-  tree: string_tree.StringTree,
-  rows: rows.Rows(String),
-  column_stops: List(Int),
-) -> string_tree.StringTree {
-  rows.map_rows(over: rows, apply: fn(row) {
-    render_row(string_tree.new(), row, column_stops)
-  })
-  |> string_tree.join("\n")
-  |> string_tree.prepend_tree(tree)
+fn render_rows(context: RenderContext, rows: rows.Rows(String)) -> RenderContext {
+  let upd_tree =
+    rows.map_rows(over: rows, apply: fn(row) {
+      let row_ctx =
+        render_row(
+          RenderContext(..context, output_tree: string_tree.new()),
+          row,
+        )
+
+      row_ctx.output_tree
+    })
+    |> string_tree.join("\n")
+    |> string_tree.prepend_tree(context.output_tree)
+
+  RenderContext(..context, output_tree: upd_tree)
 }
 
 fn render_row(
-  tree: string_tree.StringTree,
+  context: RenderContext,
   column_text: List(String),
-  column_stops: List(Int),
-) -> string_tree.StringTree {
-  list.map2(column_text, column_stops, fn(column, width) {
-    column
-    |> string.pad_end(to: width, with: " ")
-    |> string_tree.from_string()
-  })
-  |> string_tree.join(center_separator())
-  |> string_tree.prepend(start_separator())
-  |> string_tree.append(end_separator())
-  |> string_tree.prepend_tree(tree)
+) -> RenderContext {
+  let upd_tree =
+    list.map2(column_text, context.minimum_column_widths, fn(column, width) {
+      column
+      |> string.pad_end(to: width, with: " ")
+      |> string_tree.from_string()
+    })
+    |> string_tree.join(center_separator())
+    |> string_tree.prepend(start_separator())
+    |> string_tree.append(end_separator())
+    |> string_tree.prepend_tree(context.output_tree)
+
+  RenderContext(..context, output_tree: upd_tree)
 }
 
 fn horizontal() -> String {

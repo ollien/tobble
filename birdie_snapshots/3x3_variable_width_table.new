@@ -2,11 +2,8 @@
 version: 1.2.4
 title: 3x3 variable width table
 ---
-+---------+--------------+
-| ✅       | 🙅‍♂️            |
-+---------+--------------+
-| Wibbles | Foos         |
-| Wobbles | Bars         |
-| Coffee  | Tea          |
-| Naps    | All-Nighters |
-+---------+--------------+
++-------------+---------+---------+
+|             | Wibbles | Wobbles |
++-------------+---------+---------+
+| Rating      | Better  | Best    |
+| Alternative | Foo     | Bar     |
