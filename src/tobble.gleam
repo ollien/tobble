@@ -1,9 +1,9 @@
-import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/result
 import gleam/string
 import gleam/string_tree
+import gleam/yielder
 import tobble/internal/builder.{type BuilderError as InternalBuilderError}
 import tobble/internal/rows
 
@@ -45,6 +45,16 @@ type TableElement {
   EndJunctionElement
   TopJunctionElement
   BottomJunctionElement
+  TopStartCornerJunctionElement
+  TopEndCornerJunctionElement
+  BottomStartCornerJunctionElement
+  BottomEndCornerJunctionElement
+}
+
+type HorizontalRulePosition {
+  TopRulePosition
+  CenterRulePosition
+  BottomRulePosition
 }
 
 pub fn builder() -> builder.Builder {
@@ -66,36 +76,35 @@ pub fn build(with builder: builder.Builder) -> Result(Table, BuilderError) {
 }
 
 pub fn render(table table: Table) -> String {
-  let rendered_context =
-    RenderContext(
-      output: string_tree_render_output(),
-      minimum_column_widths: column_lengths(table.rows),
-      lookup_element: lookup_ascii_table_element,
-    )
-    |> render_horizontal_rule()
-    |> render_newline()
-    |> render_rows_with_header(table.rows)
-    |> render_newline()
-    |> render_horizontal_rule()
+  render_with_options(table, [])
+}
 
-  string_tree.to_string(rendered_context.output.state)
+pub fn render_iter(
+  table table: Table,
+  options options: List(RenderOption),
+) -> yielder.Yielder(String) {
+  let rendered_context =
+    yielder_render_context(table)
+    |> apply_options(options)
+    |> render_table_into_context(table)
+
+  rendered_context.output.state
 }
 
 pub fn render_with_options(
   table table: Table,
   options options: List(RenderOption),
 ) -> String {
-  todo
+  let rendered_context =
+    default_render_context(table)
+    |> apply_options(options)
+    |> render_table_into_context(table)
+
+  string_tree.to_string(rendered_context.output.state)
 }
 
 pub fn to_list(table: Table) -> List(List(String)) {
   rows.to_lists(table.rows)
-}
-
-fn string_tree_render_output() -> RenderOutput(string_tree.StringTree) {
-  RenderOutput(state: string_tree.new(), append: fn(output, data) {
-    RenderOutput(..output, state: string_tree.append(output.state, data))
-  })
 }
 
 fn builder_error_from_internal(error: InternalBuilderError) {
@@ -103,6 +112,18 @@ fn builder_error_from_internal(error: InternalBuilderError) {
     builder.InconsistentColumnCountError(expected:, got:) ->
       InconsistentColumnCountError(expected:, got:)
   }
+}
+
+fn render_table_into_context(
+  context: RenderContext(a),
+  table: Table,
+) -> RenderContext(a) {
+  context
+  |> render_horizontal_rule(TopRulePosition)
+  |> render_newline()
+  |> render_rows_with_header(table.rows)
+  |> render_newline()
+  |> render_horizontal_rule(BottomRulePosition)
 }
 
 fn column_lengths(rows: rows.Rows(String)) {
@@ -115,22 +136,40 @@ fn render_text(context: RenderContext(o), text: String) -> RenderContext(o) {
   RenderContext(..context, output: context.output.append(context.output, text))
 }
 
-fn render_horizontal_rule(context: RenderContext(o)) -> RenderContext(o) {
-  // TODO: this should be position aware
-  let junction = context.lookup_element(TopJunctionElement)
+fn render_horizontal_rule(
+  context: RenderContext(o),
+  position: HorizontalRulePosition,
+) -> RenderContext(o) {
+  let start_junction = case position {
+    TopRulePosition -> context.lookup_element(TopStartCornerJunctionElement)
+    CenterRulePosition -> context.lookup_element(StartJunctionElement)
+    BottomRulePosition ->
+      context.lookup_element(BottomStartCornerJunctionElement)
+  }
+
+  let middle_junction = case position {
+    TopRulePosition -> context.lookup_element(TopJunctionElement)
+    CenterRulePosition -> context.lookup_element(FourWayJunctionElement)
+    BottomRulePosition -> context.lookup_element(BottomJunctionElement)
+  }
+
+  let end_junction = case position {
+    TopRulePosition -> context.lookup_element(TopEndCornerJunctionElement)
+    CenterRulePosition -> context.lookup_element(EndJunctionElement)
+    BottomRulePosition -> context.lookup_element(BottomEndCornerJunctionElement)
+  }
   let horizontal = context.lookup_element(HorizontalLineElement)
 
   let rule =
-    list.fold(
-      over: context.minimum_column_widths,
-      from: string_tree.from_string(junction),
-      with: fn(acc, width) {
-        acc
-        // +2 for padding on each side
-        |> string_tree.append(string.repeat(horizontal, width + 2))
-        |> string_tree.append(junction)
-      },
-    )
+    context.minimum_column_widths
+    |> list.map(fn(width) {
+      horizontal
+      |> string.repeat(width + 2)
+      |> string_tree.from_string()
+    })
+    |> string_tree.join(middle_junction)
+    |> string_tree.prepend(start_junction)
+    |> string_tree.append(end_junction)
     |> string_tree.to_string()
 
   render_text(context, rule)
@@ -163,7 +202,7 @@ fn render_header(
   context
   |> render_row(column_text)
   |> render_newline()
-  |> render_horizontal_rule()
+  |> render_horizontal_rule(CenterRulePosition)
 }
 
 fn render_rows(
@@ -214,6 +253,65 @@ fn render_row(
   render_text(context, row)
 }
 
+fn default_render_context(table: Table) -> RenderContext(string_tree.StringTree) {
+  default_render_context_with_output(table, string_tree_render_output())
+}
+
+fn yielder_render_context(
+  table: Table,
+) -> RenderContext(yielder.Yielder(String)) {
+  default_render_context_with_output(table, yielder_render_output())
+}
+
+fn default_render_context_with_output(
+  table: Table,
+  output: RenderOutput(b),
+) -> RenderContext(b) {
+  RenderContext(
+    output:,
+    minimum_column_widths: column_lengths(table.rows),
+    lookup_element: lookup_ascii_table_element,
+  )
+}
+
+fn string_tree_render_output() -> RenderOutput(string_tree.StringTree) {
+  RenderOutput(state: string_tree.new(), append: fn(output, data) {
+    RenderOutput(..output, state: string_tree.append(output.state, data))
+  })
+}
+
+fn yielder_render_output() -> RenderOutput(yielder.Yielder(String)) {
+  RenderOutput(state: yielder.empty(), append: fn(output, data) {
+    let next = yielder.once(fn() { data })
+    RenderOutput(..output, state: yielder.append(output.state, next))
+  })
+}
+
+fn apply_options(
+  context: RenderContext(a),
+  options: List(RenderOption),
+) -> RenderContext(a) {
+  list.fold(over: options, from: context, with: fn(context, option) {
+    case option {
+      RenderLineType(line_type) ->
+        apply_line_type_render_option(context, line_type)
+      RenderWidth(_width) -> todo
+    }
+  })
+}
+
+fn apply_line_type_render_option(
+  context: RenderContext(a),
+  line_type: RenderLineType,
+) -> RenderContext(a) {
+  case line_type {
+    ASCIILineType ->
+      RenderContext(..context, lookup_element: lookup_ascii_table_element)
+    BoxDrawingCharsLineType ->
+      RenderContext(..context, lookup_element: lookup_box_drawing_table_element)
+  }
+}
+
 fn lookup_ascii_table_element(element: TableElement) -> String {
   case element {
     HorizontalLineElement -> "-"
@@ -223,5 +321,25 @@ fn lookup_ascii_table_element(element: TableElement) -> String {
     EndJunctionElement -> "+"
     TopJunctionElement -> "+"
     BottomJunctionElement -> "+"
+    TopStartCornerJunctionElement -> "+"
+    TopEndCornerJunctionElement -> "+"
+    BottomStartCornerJunctionElement -> "+"
+    BottomEndCornerJunctionElement -> "+"
+  }
+}
+
+fn lookup_box_drawing_table_element(element: TableElement) -> String {
+  case element {
+    HorizontalLineElement -> "─"
+    VerticalLineElement -> "│"
+    FourWayJunctionElement -> "┼"
+    StartJunctionElement -> "├"
+    EndJunctionElement -> "┤"
+    TopJunctionElement -> "┬"
+    BottomJunctionElement -> "┴"
+    TopStartCornerJunctionElement -> "┌"
+    TopEndCornerJunctionElement -> "┐"
+    BottomStartCornerJunctionElement -> "└"
+    BottomEndCornerJunctionElement -> "┘"
   }
 }
