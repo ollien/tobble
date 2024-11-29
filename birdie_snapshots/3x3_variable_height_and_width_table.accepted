@@ -1,0 +1,14 @@
+---
+version: 1.2.4
+title: 3x3 variable height and width table
+file: ./test/tobble_test.gleam
+test_name: snapshot_3x3_variable_height_and_width_test
+---
++--------------+--------------+
+| Wobbles      | Wibbles      |
+| Then Wibbles | Then Wobbles |
++--------------+--------------+
+| WobbleWobble | WibbleWibble |
+| Wibble       | Wobble       |
+| Wibble       | Wobble       |
++--------------+--------------+

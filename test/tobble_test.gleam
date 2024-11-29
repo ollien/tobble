@@ -51,6 +51,28 @@ pub fn snapshot_3x3_variable_width_test() {
   |> birdie.snap("3x3 variable width table")
 }
 
+pub fn snapshot_3x3_variable_height_test() {
+  tobble.builder()
+  |> tobble.add_row(["1\n1", "2", "3"])
+  |> tobble.add_row(["4", "5\n5", "6"])
+  |> tobble.add_row(["7", "8", "9\n9"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render()
+  |> birdie.snap("3x3 variable height table")
+}
+
+pub fn snapshot_3x3_variable_height_and_width_test() {
+  tobble.builder()
+  |> tobble.add_row(["Wobbles\nThen Wibbles", "Wibbles\nThen Wobbles"])
+  |> tobble.add_row(["WobbleWobble\nWibble", "WibbleWibble\nWobble"])
+  |> tobble.add_row(["Wibble", "Wobble"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render()
+  |> birdie.snap("3x3 variable height and width table")
+}
+
 pub fn snapshot_3x3_variable_width_box_drawing_test() {
   tobble.builder()
   |> tobble.add_row(["", "Wibbles", "Wobbles"])

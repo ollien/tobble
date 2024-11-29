@@ -67,6 +67,25 @@ pub fn map(over rows: Rows(a), apply func: fn(a) -> b) -> Rows(b) {
   |> Rows()
 }
 
+// Apply a function to each item in a row and flatten the results into additional rows.
+// Returns an error if the // returned lists within each row are not all of the same length
+pub fn flatmap(
+  over rows: Rows(a),
+  apply func: fn(a) -> List(b),
+) -> Result(Rows(b), RowsError) {
+  let mapped_rows = map_rows(rows, fn(row) { list.map(row, func) })
+  case list.try_each(mapped_rows, equal_lengths) {
+    Ok(Nil) -> {
+      mapped_rows
+      |> list.flat_map(list.transpose)
+      |> from_lists()
+    }
+    Error(err) -> {
+      Error(err)
+    }
+  }
+}
+
 /// Fold each column's values into one. The accumulator is per-row, so it is reset on each column.
 pub fn columnwise_fold(
   over rows: Rows(a),

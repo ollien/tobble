@@ -57,6 +57,11 @@ type HorizontalRulePosition {
   BottomRulePosition
 }
 
+type ItemPosition(a) {
+  NotLastItemPosition(a)
+  LastItemPosition(a)
+}
+
 pub fn builder() -> builder.Builder {
   builder.new()
 }
@@ -128,7 +133,11 @@ fn render_table_into_context(
 
 fn column_lengths(rows: rows.Rows(String)) {
   rows.columnwise_fold(over: rows, from: 0, with: fn(max, column) {
-    int.max(max, string.length(column))
+    column
+    |> string.split("\n")
+    |> max_length(string.length)
+    |> result.unwrap(or: 0)
+    |> int.max(max)
   })
 }
 
@@ -234,14 +243,37 @@ fn render_row(
   context: RenderContext(o),
   column_text: List(String),
 ) -> RenderContext(o) {
+  let column_lines =
+    list.map(column_text, fn(cell) { string.split(cell, "\n") })
+  let height = column_lines |> max_length(list.length) |> result.unwrap(or: 1)
+
+  column_lines
+  |> list.map(fn(column) { pad_list_end(column, to: height, with: "") })
+  |> list.transpose()
+  |> fold_join_list(from: context, with: fn(context, item) {
+    case item {
+      LastItemPosition(row_columns) -> render_visual_row(context, row_columns)
+      NotLastItemPosition(row_columns) ->
+        context
+        |> render_visual_row(row_columns)
+        |> render_text("\n")
+    }
+  })
+}
+
+fn render_visual_row(
+  context: RenderContext(o),
+  column_text: List(String),
+) -> RenderContext(o) {
   let start_separator = context.lookup_element(VerticalLineElement) <> " "
   let center_separator =
     " " <> context.lookup_element(VerticalLineElement) <> " "
   let end_separator = " " <> context.lookup_element(VerticalLineElement)
 
   let row =
-    list.map2(column_text, context.minimum_column_widths, fn(column, width) {
-      column
+    column_text
+    |> list.map2(context.minimum_column_widths, fn(cell, width) {
+      cell
       |> string.pad_end(to: width, with: " ")
       |> string_tree.from_string()
     })
@@ -251,6 +283,51 @@ fn render_row(
     |> string_tree.to_string()
 
   render_text(context, row)
+}
+
+fn fold_join_list(
+  list: List(a),
+  from initial: b,
+  with folder: fn(b, ItemPosition(a)) -> b,
+) {
+  let length = list.length(list)
+
+  list
+  |> list.index_fold(from: initial, with: fn(acc, item, idx) {
+    case idx == length - 1 {
+      True -> folder(acc, LastItemPosition(item))
+      False -> folder(acc, NotLastItemPosition(item))
+    }
+  })
+}
+
+fn pad_list_end(
+  list list: List(a),
+  to to_length: Int,
+  with filler: a,
+) -> List(a) {
+  let length = list.length(list)
+  case length >= to_length {
+    True -> list
+    False -> list.flatten([list, list.repeat(filler, to_length - length)])
+  }
+}
+
+fn max_length(lists: List(a), with get_length: fn(a) -> Int) -> Result(Int, Nil) {
+  case lists {
+    [] -> Error(Nil)
+    lists -> {
+      lists
+      |> list.fold(from: 0, with: fn(acc, lengthable) {
+        let length = get_length(lengthable)
+        case length > acc {
+          True -> length
+          False -> acc
+        }
+      })
+      |> Ok()
+    }
+  }
 }
 
 fn default_render_context(table: Table) -> RenderContext(string_tree.StringTree) {
