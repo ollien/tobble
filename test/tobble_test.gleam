@@ -95,6 +95,6 @@ pub fn snapshot_3x3_fixed_width_from_iterator_test() {
   |> should.be_ok()
   |> tobble.render_iter(options: [])
   |> yielder.to_list()
-  |> string.join("")
+  |> string.join("\n")
   |> birdie.snap("3x3 fixed width table from iterator")
 }

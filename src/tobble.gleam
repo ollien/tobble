@@ -27,14 +27,9 @@ pub type BuilderError {
 
 type RenderContext(o) {
   RenderContext(
-    output: RenderOutput(o),
     minimum_column_widths: List(Int),
     lookup_element: fn(TableElement) -> String,
   )
-}
-
-type RenderOutput(a) {
-  RenderOutput(state: a, append: fn(RenderOutput(a), String) -> RenderOutput(a))
 }
 
 type TableElement {
@@ -55,11 +50,6 @@ type HorizontalRulePosition {
   TopRulePosition
   CenterRulePosition
   BottomRulePosition
-}
-
-type ItemPosition(a) {
-  NotLastItemPosition(a)
-  LastItemPosition(a)
 }
 
 pub fn builder() -> builder.Builder {
@@ -88,24 +78,22 @@ pub fn render_iter(
   table table: Table,
   options options: List(RenderOption),
 ) -> yielder.Yielder(String) {
-  let rendered_context =
-    yielder_render_context(table)
-    |> apply_options(options)
-    |> render_table_into_context(table)
-
-  rendered_context.output.state
+  default_render_context(table)
+  |> apply_options(options)
+  |> rendered_yielder(table)
 }
 
 pub fn render_with_options(
   table table: Table,
   options options: List(RenderOption),
 ) -> String {
-  let rendered_context =
-    default_render_context(table)
-    |> apply_options(options)
-    |> render_table_into_context(table)
-
-  string_tree.to_string(rendered_context.output.state)
+  default_render_context(table)
+  |> apply_options(options)
+  |> rendered_yielder(table)
+  |> yielder.map(string_tree.from_string)
+  |> yielder.to_list()
+  |> string_tree.join("\n")
+  |> string_tree.to_string()
 }
 
 pub fn to_list(table: Table) -> List(List(String)) {
@@ -119,16 +107,15 @@ fn builder_error_from_internal(error: InternalBuilderError) {
   }
 }
 
-fn render_table_into_context(
+fn rendered_yielder(
   context: RenderContext(a),
   table: Table,
-) -> RenderContext(a) {
-  context
-  |> render_horizontal_rule(TopRulePosition)
-  |> render_newline()
-  |> render_rows_with_header(table.rows)
-  |> render_newline()
-  |> render_horizontal_rule(BottomRulePosition)
+) -> yielder.Yielder(String) {
+  yielder.once(fn() { render_horizontal_rule(context, TopRulePosition) })
+  |> yielder.append(rows_with_header_yielder(context, table.rows))
+  |> yielder.append(
+    yielder.once(fn() { render_horizontal_rule(context, BottomRulePosition) }),
+  )
 }
 
 fn column_lengths(rows: rows.Rows(String)) {
@@ -141,14 +128,10 @@ fn column_lengths(rows: rows.Rows(String)) {
   })
 }
 
-fn render_text(context: RenderContext(o), text: String) -> RenderContext(o) {
-  RenderContext(..context, output: context.output.append(context.output, text))
-}
-
 fn render_horizontal_rule(
   context: RenderContext(o),
   position: HorizontalRulePosition,
-) -> RenderContext(o) {
+) -> String {
   let start_junction = case position {
     TopRulePosition -> context.lookup_element(TopStartCornerJunctionElement)
     CenterRulePosition -> context.lookup_element(StartJunctionElement)
@@ -181,82 +164,71 @@ fn render_horizontal_rule(
     |> string_tree.append(end_junction)
     |> string_tree.to_string()
 
-  render_text(context, rule)
+  rule
 }
 
-fn render_newline(context: RenderContext(o)) -> RenderContext(o) {
-  render_text(context, "\n")
-}
-
-fn render_rows_with_header(
+fn rows_with_header_yielder(
   context: RenderContext(o),
   rows: rows.Rows(String),
-) -> RenderContext(o) {
+) -> yielder.Yielder(String) {
   case rows.pop_row(rows) {
     // No rows, so no change needed
-    Error(Nil) -> context
+    Error(Nil) -> yielder.empty()
     Ok(#(head_row, rest_rows)) -> {
-      context
-      |> render_header(head_row)
-      |> render_newline()
-      |> render_rows(rest_rows)
+      yielder.append(
+        header_yielder(context, head_row),
+        rows_yielder(context, rest_rows),
+      )
     }
   }
 }
 
-fn render_header(
+fn header_yielder(
   context: RenderContext(o),
   column_text: List(String),
-) -> RenderContext(o) {
-  context
-  |> render_row(column_text)
-  |> render_newline()
-  |> render_horizontal_rule(CenterRulePosition)
+) -> yielder.Yielder(String) {
+  yielder.append(
+    row_yielder(context, column_text),
+    yielder.once(fn() { render_horizontal_rule(context, CenterRulePosition) }),
+  )
 }
 
-fn render_rows(
+fn rows_yielder(
   context: RenderContext(o),
   rows: rows.Rows(String),
-) -> RenderContext(o) {
-  let rows =
-    rows.map_rows(over: rows, apply: fn(row) {
-      let row_ctx =
-        render_row(
-          // Can't be a record update until https://github.com/gleam-lang/gleam/pull/3773
-          RenderContext(
-            minimum_column_widths: context.minimum_column_widths,
-            lookup_element: context.lookup_element,
-            output: string_tree_render_output(),
-          ),
-          row,
-        )
-
-      row_ctx.output.state
-    })
-    |> string_tree.join("\n")
-    |> string_tree.to_string()
-
-  render_text(context, rows)
+) -> yielder.Yielder(String) {
+  yielder.unfold(rows, fn(remaining_rows) {
+    case rows.pop_row(remaining_rows) {
+      Error(Nil) -> yielder.Done
+      Ok(#(row, rest_rows)) -> {
+        yielder.Next(element: row_yielder(context, row), accumulator: rest_rows)
+      }
+    }
+  })
+  |> yielder.flatten()
 }
 
-fn render_row(
+fn row_yielder(
   context: RenderContext(o),
   column_text: List(String),
-) -> RenderContext(o) {
+) -> yielder.Yielder(String) {
   let column_lines =
     list.map(column_text, fn(cell) { string.split(cell, "\n") })
   let height = column_lines |> max_length(list.length) |> result.unwrap(or: 1)
 
-  column_lines
-  |> list.map(fn(column) { pad_list_end(column, to: height, with: "") })
-  |> list.transpose()
-  |> fold_join_list(from: context, with: fn(context, item) {
-    case item {
-      LastItemPosition(row_columns) -> render_visual_row(context, row_columns)
-      NotLastItemPosition(row_columns) ->
-        context
-        |> render_visual_row(row_columns)
-        |> render_text("\n")
+  let visual_rows =
+    column_lines
+    |> list.map(fn(column) { pad_list_end(column, to: height, with: "") })
+    |> list.transpose()
+
+  yielder.unfold(visual_rows, fn(remaining_rows) {
+    case remaining_rows {
+      [] -> yielder.Done
+      [visual_row, ..rest_rows] ->
+        yielder.Next(
+          element: render_visual_row(context, visual_row),
+          accumulator: rest_rows,
+        )
     }
   })
 }
@@ -264,41 +236,22 @@ fn render_row(
 fn render_visual_row(
   context: RenderContext(o),
   column_text: List(String),
-) -> RenderContext(o) {
+) -> String {
   let start_separator = context.lookup_element(VerticalLineElement) <> " "
   let center_separator =
     " " <> context.lookup_element(VerticalLineElement) <> " "
   let end_separator = " " <> context.lookup_element(VerticalLineElement)
 
-  let row =
-    column_text
-    |> list.map2(context.minimum_column_widths, fn(cell, width) {
-      cell
-      |> string.pad_end(to: width, with: " ")
-      |> string_tree.from_string()
-    })
-    |> string_tree.join(center_separator)
-    |> string_tree.prepend(start_separator)
-    |> string_tree.append(end_separator)
-    |> string_tree.to_string()
-
-  render_text(context, row)
-}
-
-fn fold_join_list(
-  list: List(a),
-  from initial: b,
-  with folder: fn(b, ItemPosition(a)) -> b,
-) {
-  let length = list.length(list)
-
-  list
-  |> list.index_fold(from: initial, with: fn(acc, item, idx) {
-    case idx == length - 1 {
-      True -> folder(acc, LastItemPosition(item))
-      False -> folder(acc, NotLastItemPosition(item))
-    }
+  column_text
+  |> list.map2(context.minimum_column_widths, fn(cell, width) {
+    cell
+    |> string.pad_end(to: width, with: " ")
+    |> string_tree.from_string()
   })
+  |> string_tree.join(center_separator)
+  |> string_tree.prepend(start_separator)
+  |> string_tree.append(end_separator)
+  |> string_tree.to_string()
 }
 
 fn pad_list_end(
@@ -330,38 +283,11 @@ fn max_length(lists: List(a), with get_length: fn(a) -> Int) -> Result(Int, Nil)
   }
 }
 
-fn default_render_context(table: Table) -> RenderContext(string_tree.StringTree) {
-  default_render_context_with_output(table, string_tree_render_output())
-}
-
-fn yielder_render_context(
-  table: Table,
-) -> RenderContext(yielder.Yielder(String)) {
-  default_render_context_with_output(table, yielder_render_output())
-}
-
-fn default_render_context_with_output(
-  table: Table,
-  output: RenderOutput(b),
-) -> RenderContext(b) {
+fn default_render_context(table: Table) -> RenderContext(b) {
   RenderContext(
-    output:,
     minimum_column_widths: column_lengths(table.rows),
     lookup_element: lookup_ascii_table_element,
   )
-}
-
-fn string_tree_render_output() -> RenderOutput(string_tree.StringTree) {
-  RenderOutput(state: string_tree.new(), append: fn(output, data) {
-    RenderOutput(..output, state: string_tree.append(output.state, data))
-  })
-}
-
-fn yielder_render_output() -> RenderOutput(yielder.Yielder(String)) {
-  RenderOutput(state: yielder.empty(), append: fn(output, data) {
-    let next = yielder.once(fn() { data })
-    RenderOutput(..output, state: yielder.append(output.state, next))
-  })
 }
 
 fn apply_options(
