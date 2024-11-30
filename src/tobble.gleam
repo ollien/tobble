@@ -21,6 +21,7 @@ pub type RenderOption {
 
 pub type RenderLineType {
   BoxDrawingCharsLineType
+  BoxDrawingCharsWithRoundedCornersLineType
   ASCIILineType
 }
 
@@ -340,6 +341,11 @@ fn apply_line_type_render_option(
       RenderContext(..context, lookup_element: lookup_ascii_table_element)
     BoxDrawingCharsLineType ->
       RenderContext(..context, lookup_element: lookup_box_drawing_table_element)
+    BoxDrawingCharsWithRoundedCornersLineType ->
+      RenderContext(
+        ..context,
+        lookup_element: lookup_box_drawing_rounded_corner_table_element,
+      )
   }
 }
 
@@ -505,5 +511,23 @@ fn lookup_box_drawing_table_element(element: TableElement) -> String {
     TopEndCornerJunctionElement -> "┐"
     BottomStartCornerJunctionElement -> "└"
     BottomEndCornerJunctionElement -> "┘"
+  }
+}
+
+fn lookup_box_drawing_rounded_corner_table_element(
+  element: TableElement,
+) -> String {
+  case element {
+    HorizontalLineElement -> "─"
+    VerticalLineElement -> "│"
+    FourWayJunctionElement -> "┼"
+    StartJunctionElement -> "├"
+    EndJunctionElement -> "┤"
+    TopJunctionElement -> "┬"
+    BottomJunctionElement -> "┴"
+    TopStartCornerJunctionElement -> "╭"
+    TopEndCornerJunctionElement -> "╮"
+    BottomStartCornerJunctionElement -> "╰"
+    BottomEndCornerJunctionElement -> "╯"
   }
 }

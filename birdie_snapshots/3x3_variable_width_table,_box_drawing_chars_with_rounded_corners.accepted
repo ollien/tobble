@@ -1,0 +1,12 @@
+---
+version: 1.2.4
+title: 3x3 variable width table, box drawing chars with rounded corners
+file: ./test/tobble_test.gleam
+test_name: snapshot_3x3_variable_width_box_drawing_with_rounded_corners_test
+---
+╭─────────────┬─────────┬─────────╮
+│             │ Wibbles │ Wobbles │
+├─────────────┼─────────┼─────────┤
+│ Rating      │ Better  │ Best    │
+│ Alternative │ Foo     │ Bar     │
+╰─────────────┴─────────┴─────────╯
