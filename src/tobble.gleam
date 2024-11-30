@@ -14,9 +14,9 @@ pub opaque type Table {
 }
 
 pub type RenderOption {
-  RenderTableWidth(width: Int)
-  RenderColumnWidth(width: Int)
-  RenderLineType(line_type: RenderLineType)
+  TableWidthRenderOption(width: Int)
+  ColumnWidthRenderOption(width: Int)
+  LineTypeRenderOption(line_type: RenderLineType)
 }
 
 pub type RenderLineType {
@@ -321,10 +321,11 @@ fn apply_options(
 ) -> RenderContext(a) {
   list.fold(over: options, from: context, with: fn(context, option) {
     case option {
-      RenderLineType(line_type) ->
+      LineTypeRenderOption(line_type) ->
         apply_line_type_render_option(context, line_type)
-      RenderTableWidth(width) -> apply_table_width_render_option(context, width)
-      RenderColumnWidth(width) ->
+      TableWidthRenderOption(width) ->
+        apply_table_width_render_option(context, width)
+      ColumnWidthRenderOption(width) ->
         apply_column_width_render_option(context, width)
     }
   })

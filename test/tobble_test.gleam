@@ -81,7 +81,7 @@ pub fn snapshot_3x3_variable_width_box_drawing_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options([
-    tobble.RenderLineType(tobble.BoxDrawingCharsLineType),
+    tobble.LineTypeRenderOption(tobble.BoxDrawingCharsLineType),
   ])
   |> birdie.snap("3x3 variable width table, box drawing chars")
 }
@@ -110,7 +110,7 @@ pub fn snapshot_3x3_scaled_width_test() {
   |> tobble.add_row(["3", "Wobble", "An alternative to 'bar' in Gleam"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.RenderTableWidth(32)])
+  |> tobble.render_with_options(options: [tobble.TableWidthRenderOption(32)])
   |> birdie.snap("3x3 scaled width table")
 }
 
@@ -125,7 +125,7 @@ pub fn snapshot_3x3_scaled_width_too_small_gives_one_char_per_column_test() {
   |> tobble.add_row(["3", "Wobble", "An alternative to 'bar' in Gleam"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.RenderTableWidth(3)])
+  |> tobble.render_with_options(options: [tobble.TableWidthRenderOption(3)])
   |> birdie.snap("3x3 scaled width table, desired width too small")
 }
 
@@ -136,7 +136,7 @@ pub fn snapshot_3x3_column_width_grown_test() {
   |> tobble.add_row(["7", "8", "9"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.RenderColumnWidth(10)])
+  |> tobble.render_with_options(options: [tobble.ColumnWidthRenderOption(10)])
   |> birdie.snap("3x3 with 10 wide columns")
 }
 
@@ -147,7 +147,7 @@ pub fn snapshot_3x3_column_width_grown_shrunk_test() {
   |> tobble.add_row(["7777777", "88888888", "999999999"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.RenderColumnWidth(3)])
+  |> tobble.render_with_options(options: [tobble.ColumnWidthRenderOption(3)])
   |> birdie.snap("3x3 with 3 wide columns")
 }
 
@@ -158,6 +158,6 @@ pub fn snapshot_3x3_column_width_minimum_width_enforced_test() {
   |> tobble.add_row(["7777777", "88888888", "999999999"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.RenderColumnWidth(0)])
+  |> tobble.render_with_options(options: [tobble.ColumnWidthRenderOption(0)])
   |> birdie.snap("3x3 with minimum width enforced")
 }
