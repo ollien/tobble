@@ -1,0 +1,105 @@
+---
+version: 1.2.4
+title: 3x3 scaled width table, desired width too small
+file: ./test/tobble_test.gleam
+test_name: snapshot_3x3_scaled_width_too_small_gives_one_char_per_column_test
+---
++---+---+---+
+| # | P | U |
+|   | h | s |
+|   | r | a |
+|   | a | g |
+|   | s | e |
+|   | e |   |
++---+---+---+
+| 1 | T | T |
+|   | h | y |
+|   | e | p |
+|   | Q | i |
+|   | u | n |
+|   | i | g |
+|   | c | e |
+|   | k | v |
+|   | B | e |
+|   | r | r |
+|   | o | y |
+|   | w | c |
+|   | n | h |
+|   | F | a |
+|   | o | r |
+|   | x | a |
+|   | J | c |
+|   | u | t |
+|   | m | e |
+|   | p | r |
+|   | e |   |
+|   | d |   |
+|   | O |   |
+|   | v |   |
+|   | e |   |
+|   | r |   |
+|   | T |   |
+|   | h |   |
+|   | e |   |
+|   | L |   |
+|   | a |   |
+|   | z |   |
+|   | y |   |
+|   | D |   |
+|   | o |   |
+|   | g |   |
+| 2 | W | A |
+|   | i | n |
+|   | b | a |
+|   | b | l |
+|   | l | t |
+|   | e | e |
+|   |   | r |
+|   |   | n |
+|   |   | a |
+|   |   | t |
+|   |   | i |
+|   |   | v |
+|   |   | e |
+|   |   | t |
+|   |   | o |
+|   |   | ' |
+|   |   | f |
+|   |   | o |
+|   |   | o |
+|   |   | ' |
+|   |   | i |
+|   |   | n |
+|   |   | G |
+|   |   | l |
+|   |   | e |
+|   |   | a |
+|   |   | m |
+| 3 | W | A |
+|   | o | n |
+|   | b | a |
+|   | b | l |
+|   | l | t |
+|   | e | e |
+|   |   | r |
+|   |   | n |
+|   |   | a |
+|   |   | t |
+|   |   | i |
+|   |   | v |
+|   |   | e |
+|   |   | t |
+|   |   | o |
+|   |   | ' |
+|   |   | b |
+|   |   | a |
+|   |   | r |
+|   |   | ' |
+|   |   | i |
+|   |   | n |
+|   |   | G |
+|   |   | l |
+|   |   | e |
+|   |   | a |
+|   |   | m |
++---+---+---+

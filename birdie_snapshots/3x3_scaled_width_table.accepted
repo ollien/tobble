@@ -1,0 +1,22 @@
+---
+version: 1.2.4
+title: 3x3 scaled width table
+file: ./test/tobble_test.gleam
+test_name: snapshot_3x3_scaled_width_test
+---
++---+--------------+-----------+
+| # | Phrase       | Usage     |
++---+--------------+-----------+
+| 1 | The Quick    | Typing    |
+|   | Brown Fox    | every cha |
+|   | Jumped Over  | racter    |
+|   | The Lazy Dog |           |
+| 2 | Wibble       | An altern |
+|   |              | ative to  |
+|   |              | 'foo' in  |
+|   |              | Gleam     |
+| 3 | Wobble       | An altern |
+|   |              | ative to  |
+|   |              | 'bar' in  |
+|   |              | Gleam     |
++---+--------------+-----------+

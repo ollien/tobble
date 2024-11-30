@@ -98,3 +98,33 @@ pub fn snapshot_3x3_fixed_width_from_iterator_test() {
   |> string.join("\n")
   |> birdie.snap("3x3 fixed width table from iterator")
 }
+
+pub fn snapshot_3x3_scaled_width_test() {
+  tobble.builder()
+  |> tobble.add_row(["#", "Phrase", "Usage"])
+  |> tobble.add_row([
+    "1", "The Quick Brown Fox Jumped Over The Lazy Dog",
+    "Typing every character",
+  ])
+  |> tobble.add_row(["2", "Wibble", "An alternative to 'foo' in Gleam"])
+  |> tobble.add_row(["3", "Wobble", "An alternative to 'bar' in Gleam"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [tobble.RenderTableWidth(32)])
+  |> birdie.snap("3x3 scaled width table")
+}
+
+pub fn snapshot_3x3_scaled_width_too_small_gives_one_char_per_column_test() {
+  tobble.builder()
+  |> tobble.add_row(["#", "Phrase", "Usage"])
+  |> tobble.add_row([
+    "1", "The Quick Brown Fox Jumped Over The Lazy Dog",
+    "Typing every character",
+  ])
+  |> tobble.add_row(["2", "Wibble", "An alternative to 'foo' in Gleam"])
+  |> tobble.add_row(["3", "Wobble", "An alternative to 'bar' in Gleam"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [tobble.RenderTableWidth(3)])
+  |> birdie.snap("3x3 scaled width table, desired width too small")
+}
