@@ -128,3 +128,36 @@ pub fn snapshot_3x3_scaled_width_too_small_gives_one_char_per_column_test() {
   |> tobble.render_with_options(options: [tobble.RenderTableWidth(3)])
   |> birdie.snap("3x3 scaled width table, desired width too small")
 }
+
+pub fn snapshot_3x3_column_width_grown_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [tobble.RenderColumnWidth(10)])
+  |> birdie.snap("3x3 with 10 wide columns")
+}
+
+pub fn snapshot_3x3_column_width_grown_shrunk_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "22", "333"])
+  |> tobble.add_row(["4444", "55555", "666666"])
+  |> tobble.add_row(["7777777", "88888888", "999999999"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [tobble.RenderColumnWidth(3)])
+  |> birdie.snap("3x3 with 3 wide columns")
+}
+
+pub fn snapshot_3x3_column_width_minimum_width_enforced_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "22", "333"])
+  |> tobble.add_row(["4444", "55555", "666666"])
+  |> tobble.add_row(["7777777", "88888888", "999999999"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [tobble.RenderColumnWidth(0)])
+  |> birdie.snap("3x3 with minimum width enforced")
+}

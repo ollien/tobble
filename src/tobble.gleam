@@ -15,6 +15,7 @@ pub opaque type Table {
 
 pub type RenderOption {
   RenderTableWidth(width: Int)
+  RenderColumnWidth(width: Int)
   RenderLineType(line_type: RenderLineType)
 }
 
@@ -322,7 +323,9 @@ fn apply_options(
     case option {
       RenderLineType(line_type) ->
         apply_line_type_render_option(context, line_type)
-      RenderTableWidth(width) -> apply_width_render_option(context, width)
+      RenderTableWidth(width) -> apply_table_width_render_option(context, width)
+      RenderColumnWidth(width) ->
+        apply_column_width_render_option(context, width)
     }
   })
 }
@@ -339,7 +342,7 @@ fn apply_line_type_render_option(
   }
 }
 
-fn apply_width_render_option(
+fn apply_table_width_render_option(
   context: RenderContext(a),
   desired_width: Int,
 ) -> RenderContext(a) {
@@ -374,6 +377,18 @@ fn apply_width_render_option(
       RenderContext(..context, minimum_column_widths: scaled_widths)
     }
   }
+}
+
+fn apply_column_width_render_option(
+  context: RenderContext(a),
+  desired_width: Int,
+) {
+  RenderContext(
+    ..context,
+    minimum_column_widths: list.map(context.minimum_column_widths, fn(_width) {
+      int.max(1, desired_width)
+    }),
+  )
 }
 
 // Turn the desired width from the option into one that includes space for table decorations
