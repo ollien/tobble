@@ -24,7 +24,7 @@ packages = [
 
 [requirements]
 birdie = { version = ">= 1.2.4 and < 2.0.0" }
-gleam_stdlib = { version = ">= 0.34.0 and < 2.0.0" }
+gleam_stdlib = { version = ">= 0.45.0 and < 2.0.0" }
 gleam_yielder = { version = ">= 1.1.0 and < 2.0.0" }
 gleeunit = { version = ">= 1.2.0 and < 2.0.0" }
 string_width = { version = ">= 3.3.0 and < 4.0.0" }

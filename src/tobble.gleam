@@ -1,3 +1,36 @@
+//// Tobble is a table library for Gleam, which makes it as easy as
+//// possible to render tables from simple output. It does provide some
+//// customization options, but they are not very expansive, as Tobble does not
+//// aim to be a full layout library. Rather, it aims to make it simple to make
+//// beautiful output for your programs.
+////
+//// ```gleam
+//// import gleam/io
+//// import tobble
+////
+//// pub fn main() {
+////   let assert Ok(table) =
+////     tobble.builder()
+////     |> tobble.add_row(["", "Output"])
+////     |> tobble.add_row(["Stage 1", "Wibble"])
+////     |> tobble.add_row(["Stage 2", "Wobble"])
+////     |> tobble.add_row(["Stage 3", "WibbleWobble"])
+////     |> tobble.build()
+////
+////   io.println(tobble.render(table))
+//// }
+//// ```
+////
+//// ```text
+//// +---------+--------------+
+//// |         | Output       |
+//// +---------+--------------+
+//// | Stage 1 | Wibble       |
+//// | Stage 2 | Wobble       |
+//// | Stage 3 | WibbleWobble |
+//// +---------+--------------+
+//// ```
+
 import gleam/int
 import gleam/list
 import gleam/order
@@ -9,23 +42,72 @@ import string_width
 import tobble/internal/builder.{type BuilderError as InternalBuilderError}
 import tobble/internal/rows
 
+/// `Table` is the central type of Tobble. It holds the data you wish to display,
+/// without regard for how you render it. These can be built using `builder`/`build`.
 pub opaque type Table {
   Table(rows: rows.Rows(String))
 }
 
+/// `Builder` is a type used to help you build tables. See `builder()` for more details.
+pub opaque type Builder {
+  Builder(inner: builder.Builder)
+}
+
 pub type RenderOption {
+  /// Render the table with a width of, at most, the given width. Note that this
+  /// is best effort, and there are pathological cases where Tobble will decide
+  /// to render your tables slightly wider than requested (e.g. requesting a
+  /// width too small to even fit the table borders). By default, the table
+  /// width is unconstrained.
   TableWidthRenderOption(width: Int)
+  /// Render the table where each column's text has the given width. If a width
+  /// less than 1 is given, this will default to 1. By default, columns are as
+  /// wide as the longest row within them.
   ColumnWidthRenderOption(width: Int)
+  /// Render the table with a different style of border
+  /// By default, `ASCIILineType` is used.
   LineTypeRenderOption(line_type: RenderLineType)
 }
 
 pub type RenderLineType {
+  /// Renders the table with box drawing characters for the borders.
+  ///
+  /// <pre><code style="font-family: monospace;" class="language-plaintext">┌─────────┬──────────────┐
+  /// │         │ Output       │
+  /// ├─────────┼──────────────┤
+  /// │ Stage 1 │ Wibble       │
+  /// │ Stage 2 │ Wobble       │
+  /// │ Stage 3 │ WibbleWobble │
+  /// └─────────┴──────────────┘</code></pre>
   BoxDrawingCharsLineType
+  /// Renders the table with box drawing characters for the borders, but
+  /// with rounded corners.
+  ///
+  /// <pre><code style="font-family: monospace;" class="language-plaintext">╭─────────┬──────────────╮
+  /// │         │ Output       │
+  /// ├─────────┼──────────────┤
+  /// │ Stage 1 │ Wibble       │
+  /// │ Stage 2 │ Wobble       │
+  /// │ Stage 3 │ WibbleWobble │
+  /// ╰─────────┴──────────────╯</code></pre>
   BoxDrawingCharsWithRoundedCornersLineType
+  /// Render the table with ASCII characters for the borders.
+  /// This is the default setting.
+  ///
+  /// ```text
+  /// +---------+--------------+
+  /// |         | Output       |
+  /// +---------+--------------+
+  /// | Stage 1 | Wibble       |
+  /// | Stage 2 | Wobble       |
+  /// | Stage 3 | WibbleWobble |
+  /// +---------+--------------+
+  /// ```
   ASCIILineType
 }
 
 pub type BuilderError {
+  /// Returned when not all rows have the same number of columns.
   InconsistentColumnCountError(expected: Int, got: Int)
 }
 
@@ -60,28 +142,99 @@ type ScaledColumnWidths {
   ScaledColumnWidths(widths: List(Int), extra_width: Int)
 }
 
-pub fn builder() -> builder.Builder {
-  builder.new()
+/// Create a new `Builder` for table generation. Once you have completed
+/// adding your rows to this with `add_row`, `build` should be called to
+/// generate a `Table`.
+pub fn builder() -> Builder {
+  Builder(inner: builder.new())
 }
 
-pub fn add_row(
-  to builder: builder.Builder,
-  columns columns: List(String),
-) -> builder.Builder {
-  builder.add_row(builder, columns)
+/// Add a row to a table that is being built. Every call to `add_row` for a given
+/// `Builder` must have the same number of columns, or an
+/// `InconsistentColumnCountError` will be returned when `build` is called.
+pub fn add_row(to builder: Builder, columns columns: List(String)) -> Builder {
+  builder.inner
+  |> builder.add_row(columns)
+  |> Builder()
 }
 
-pub fn build(with builder: builder.Builder) -> Result(Table, BuilderError) {
-  builder
+/// Build a `Table` from the given `Builder`. If an operation was performed when
+/// constructing the `Builder`, an error will be returned.
+pub fn build(with builder: Builder) -> Result(Table, BuilderError) {
+  builder.inner
   |> builder.to_result()
   |> result.map(fn(rows) { Table(rows:) })
   |> result.map_error(builder_error_from_internal)
 }
 
+@internal
+pub fn build_with_internal(
+  builder: builder.Builder,
+) -> Result(Table, BuilderError) {
+  build(Builder(inner: builder))
+}
+
+/// Render the given table to a `String`, with the default options.
+/// The output can be customized by using `render_with_options`.
+///
+/// # Example
+///
+/// ```gleam
+/// let assert Ok(ttable) =
+///     tobble.builder()
+///     |> tobble.add_row(["", "Output"])
+///     |> tobble.add_row(["Stage 1", "Wibble"])
+///     |> tobble.add_row(["Stage 2", "Wobble"])
+///     |> tobble.add_row(["Stage 3", "WibbleWobble"])
+///     |> tobble.build()
+///
+///   io.println(tobble.render(table))
+/// ```
+///
+/// ```text
+/// +---------+--------------+
+/// |         | Output       |
+/// +---------+--------------+
+/// | Stage 1 | Wibble       |
+/// | Stage 2 | Wobble       |
+/// | Stage 3 | WibbleWobble |
+/// +---------+--------------+
+/// ```
 pub fn render(table table: Table) -> String {
   render_with_options(table, [])
 }
 
+/// Render the given table to a `Yielder`. Each element of the `Yielder` will
+/// produce a single line of output, without a trailing newline. Note that
+/// options are applied in order, so if duplicate or conflicting options
+/// are given, the last one will win.
+///
+/// # Example
+///
+/// ```gleam
+/// let assert Ok(table) =
+/// tobble.builder()
+/// |> tobble.add_row(["", "Output"])
+/// |> tobble.add_row(["Stage 1", "Wibble"])
+/// |> tobble.add_row(["Stage 2", "Wobble"])
+/// |> tobble.add_row(["Stage 3", "WibbleWobble"])
+/// |> tobble.build()
+///
+///
+/// table
+/// |> tobble.render_iter(options: [])
+/// |> yielder.each(io.println)
+/// ```
+///
+/// ```text
+/// +---------+--------------+
+/// |         | Output       |
+/// +---------+--------------+
+/// | Stage 1 | Wibble       |
+/// | Stage 2 | Wobble       |
+/// | Stage 3 | WibbleWobble |
+/// +---------+--------------+
+/// ```
 pub fn render_iter(
   table table: Table,
   options options: List(RenderOption),
@@ -91,6 +244,39 @@ pub fn render_iter(
   |> rendered_yielder(table)
 }
 
+/// Render the given table to a `String`, with extra options. Note that options
+/// are applied in order, so if duplicate or conflicting options are given, the
+/// last one will win.
+///
+///
+/// ```gleam
+/// let assert Ok(table) =
+///   tobble.builder()
+///   |> tobble.add_row(["", "Output"])
+///   |> tobble.add_row(["Stage 1", "Wibble"])
+///   |> tobble.add_row(["Stage 2", "Wobble"])
+///   |> tobble.add_row(["Stage 3", "WibbleWobble"])
+///   |> tobble.build()
+///
+/// io.println(
+///   tobble.render_with_options(table, options: [
+///     tobble.ColumnWidthRenderOption(6),
+///   ]),
+/// )
+/// ```
+///
+/// ```text
+/// +--------+--------+
+/// |        | Output |
+/// +--------+--------+
+/// | Stage  | Wibble |
+/// | 1      |        |
+/// | Stage  | Wobble |
+/// | 2      |        |
+/// | Stage  | Wibble |
+/// | 3      | Wobble |
+/// +--------+--------+
+/// ```
 pub fn render_with_options(
   table table: Table,
   options options: List(RenderOption),
@@ -104,6 +290,30 @@ pub fn render_with_options(
   |> string_tree.to_string()
 }
 
+/// Convert an existing table to a list of its rows.
+///
+/// # Example
+///
+/// ```gleam
+/// let assert Ok(table) =
+///   tobble.builder()
+///   |> tobble.add_row(["", "Output"])
+///   |> tobble.add_row(["Stage 1", "Wibble"])
+///   |> tobble.add_row(["Stage 2", "Wobble"])
+///   |> tobble.add_row(["Stage 3", "WibbleWobble"])
+///   |> tobble.build()
+///
+/// io.debug(tobble.to_list(table))
+/// ```
+///
+/// ```gleam
+/// [
+///   ["", "Output"],
+///   ["Stage 1", "Wibble"],
+///   ["Stage 2", "Wobble"],
+///   ["Stage 3", "WibbleWobble"]
+/// ]
+/// ```
 pub fn to_list(table: Table) -> List(List(String)) {
   rows.to_lists(table.rows)
 }
@@ -359,13 +569,13 @@ fn apply_table_width_render_option(
       desired_width:,
     )
 
-  let total_original_width = list_sum(context.minimum_column_widths)
+  let total_original_width = int.sum(context.minimum_column_widths)
   let scaled_widths =
     list.map(context.minimum_column_widths, fn(column_width) {
       column_width * desired_width / total_original_width
     })
 
-  let total_scaled_width = list_sum(scaled_widths)
+  let total_scaled_width = int.sum(scaled_widths)
 
   case int.compare(total_scaled_width, total_original_width) {
     order.Gt | order.Eq ->
@@ -428,12 +638,6 @@ fn column_content_width_for_table_width(
   }
 }
 
-fn list_sum(list: List(Int)) -> Int {
-  list
-  |> list.reduce(fn(a, b) { a + b })
-  |> result.unwrap(or: 0)
-}
-
 fn scale_empty_columns(
   widths: List(Int),
   allowed_extra_width: Int,
@@ -457,13 +661,14 @@ fn redistribute_extra_width(
   case allowed_extra_width {
     0 -> ScaledColumnWidths(widths:, extra_width: 0)
     allowed_extra_width -> {
-      let redistributed = do_redistribute_width(widths, allowed_extra_width)
+      let redistributed =
+        do_redistribute_extra_width(widths, allowed_extra_width)
       redistribute_extra_width(redistributed.widths, redistributed.extra_width)
     }
   }
 }
 
-fn do_redistribute_width(
+fn do_redistribute_extra_width(
   widths: List(Int),
   allowed_extra_width: Int,
 ) -> ScaledColumnWidths {

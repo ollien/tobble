@@ -14,7 +14,7 @@ pub fn build_builds_acceptable_builder_test() {
   let rows = [["1", "2", "3"], ["4", "5", "6"]]
   let builder = builder.from_list(rows)
 
-  tobble.build(builder)
+  tobble.build_with_internal(builder)
   |> should.be_ok()
   |> tobble.to_list()
   |> should.equal(rows)
@@ -24,7 +24,7 @@ pub fn build_does_not_build_failed_builder_test() {
   let error = builder.InconsistentColumnCountError(expected: 5, got: 2)
 
   builder.from_error(error)
-  |> tobble.build()
+  |> tobble.build_with_internal()
   |> should.be_error()
   |> should.equal(tobble.InconsistentColumnCountError(expected: 5, got: 2))
 }
