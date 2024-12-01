@@ -368,6 +368,7 @@ fn render_horizontal_rule(
     CenterRulePosition -> context.lookup_element(EndJunctionElement)
     BottomRulePosition -> context.lookup_element(BottomEndCornerJunctionElement)
   }
+
   let horizontal = context.lookup_element(HorizontalLineElement)
 
   let rule =
@@ -431,14 +432,9 @@ fn row_yielder(
   column_text: List(String),
 ) -> yielder.Yielder(String) {
   let column_lines =
-    list.map2(column_text, context.minimum_column_widths, fn(cell, width) {
-      cell
-      |> string_width.limit(
-        // The max number of rows is the length of the string,
-        // so worst case we can have one char per line
-        to: string_width.Size(rows: string.length(cell), columns: width),
-        ellipsis: "",
-      )
+    list.map2(column_text, context.minimum_column_widths, fn(text, width) {
+      text
+      |> limit_text_width(to: width)
       |> string.split("\n")
     })
   let height = column_lines |> max_length(list.length) |> result.unwrap(or: 1)
@@ -483,11 +479,28 @@ fn render_visual_row(
 
 fn column_text_to_width(text: String, width: Int) -> String {
   text
-  |> string_width.limit(
+  |> limit_text_width(to: width)
+  |> pad_end(to: width)
+}
+
+fn limit_text_width(text: String, to width: Int) -> String {
+  string_width.limit(
+    text,
+    // The max number of rows is the length of the string,
+    // so worst case we can have one char per line
     to: string_width.Size(rows: string.length(text), columns: width),
     ellipsis: "",
   )
-  |> string.pad_end(to: width, with: " ")
+}
+
+fn pad_end(text: String, to width: Int) -> String {
+  case text {
+    // string_width.align returns an empty string, which is not desirable
+    // https://gitlab.com/arkandos/string-width/-/issues/1
+    "" -> string.repeat(" ", width)
+    text ->
+      string_width.align(text, align: string_width.Left, to: width, with: " ")
+  }
 }
 
 fn pad_list_end(

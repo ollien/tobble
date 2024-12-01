@@ -51,6 +51,17 @@ pub fn snapshot_3x3_variable_width_test() {
   |> birdie.snap("3x3 variable width table")
 }
 
+pub fn snapshot_2x3_variable_width_with_wide_chars_test() {
+  tobble.builder()
+  |> tobble.add_row(["✅", "❌"])
+  |> tobble.add_row(["Wibbles", "Foo"])
+  |> tobble.add_row(["Wobbles", "Bar"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render()
+  |> birdie.snap("3x3 variable width table with wide chars")
+}
+
 pub fn snapshot_3x3_variable_height_test() {
   tobble.builder()
   |> tobble.add_row(["1\n1", "2", "3"])

@@ -1,0 +1,12 @@
+---
+version: 1.2.4
+title: 3x3 variable width table with wide chars
+file: ./test/tobble_test.gleam
+test_name: snapshot_2x3_variable_width_with_wide_chars_test
+---
++---------+-----+
+| ✅      | ❌  |
++---------+-----+
+| Wibbles | Foo |
+| Wobbles | Bar |
++---------+-----+
