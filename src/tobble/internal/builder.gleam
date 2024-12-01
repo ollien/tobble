@@ -34,7 +34,6 @@ pub fn add_row(builder: Builder, columns columns: List(String)) -> Builder {
   })
 }
 
-// to_* are for testing only, in order to help isolate what certain tests test
 pub fn to_result(builder: Builder) -> Result(rows.Rows(String), BuilderError) {
   case builder {
     Builder(internals) ->
@@ -51,6 +50,8 @@ pub fn to_result(builder: Builder) -> Result(rows.Rows(String), BuilderError) {
   }
 }
 
+// from_* are for testing only, in order to help isolate what certain tests test
+@internal
 pub fn from_list(rows: List(List(String))) -> Builder {
   Builder(internals: BuilderInternals(rows: list.reverse(rows)))
 }

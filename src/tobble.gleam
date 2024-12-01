@@ -143,7 +143,7 @@ type ScaledColumnWidths {
 }
 
 /// Create a new `Builder` for table generation. Once you have completed
-/// adding your rows to this with `add_row`, `build` should be called to
+/// adding your rows to this with `add_row`, you should call `build` to
 /// generate a `Table`.
 pub fn builder() -> Builder {
   Builder(inner: builder.new())
