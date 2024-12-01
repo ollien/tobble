@@ -506,13 +506,7 @@ fn limit_text_width(text: String, to width: Int) -> String {
 }
 
 fn pad_end(text: String, to width: Int) -> String {
-  case text {
-    // string_width.align returns an empty string, which is not desirable
-    // https://gitlab.com/arkandos/string-width/-/issues/1
-    "" -> string.repeat(" ", width)
-    text ->
-      string_width.align(text, align: string_width.Left, to: width, with: " ")
-  }
+  string_width.align(text, align: string_width.Left, to: width, with: " ")
 }
 
 fn pad_list_end(

@@ -8,8 +8,8 @@ test_name: snapshot_3x3_scaled_width_test
 | # | Phrase       | Usage     |
 +---+--------------+-----------+
 | 1 | The Quick    | Typing    |
-|   | Brown Fox    | every cha |
-|   | Jumped Over  | racter    |
+|   | Brown Fox    | every     |
+|   | Jumped Over  | character |
 |   | The Lazy Dog |           |
 | 2 | Wibble       | An altern |
 |   |              | ative to  |
