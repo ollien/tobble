@@ -14,6 +14,7 @@ type BuilderInternals {
 
 pub type BuilderError {
   InconsistentColumnCountError(expected: Int, got: Int)
+  EmptyTableError
 }
 
 type UnbuiltRow =
@@ -35,7 +36,7 @@ pub fn add_row(builder: Builder, columns columns: List(String)) -> Builder {
 }
 
 pub fn to_result(builder: Builder) -> Result(rows.Rows(String), BuilderError) {
-  case builder {
+  case ensure_nonempty(builder) {
     Builder(internals) ->
       internals.rows
       |> list.reverse()
@@ -80,6 +81,15 @@ fn finish_build_step(build_result: StepResult) -> Builder {
     Ok(internals) -> Builder(internals:)
     Error(error) -> FailedBuilder(error:)
   }
+}
+
+fn ensure_nonempty(builder: Builder) -> Builder {
+  build_on(builder, fn(internals) {
+    case internals.rows {
+      [] -> Error(EmptyTableError)
+      _ -> Ok(internals)
+    }
+  })
 }
 
 fn validate_column_count(

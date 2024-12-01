@@ -26,7 +26,7 @@ pub fn cannot_build_table_with_inconsistent_column_counts_test() {
   |> should.equal(builder.InconsistentColumnCountError(expected: 3, got: 2))
 }
 
-pub fn to_result_returns_all_rows_test() {
+pub fn to_lists_returns_all_rows_test() {
   let rows = [["1", "2", "3"], ["4", "5", "6"]]
   let builder = builder.from_list(rows)
 
@@ -35,4 +35,11 @@ pub fn to_result_returns_all_rows_test() {
   |> should.be_ok()
   |> rows.to_lists()
   |> should.equal(rows)
+}
+
+pub fn cannot_build_empty_table_test() {
+  builder.new()
+  |> builder.to_result()
+  |> should.be_error()
+  |> should.equal(builder.EmptyTableError)
 }

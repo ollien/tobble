@@ -108,7 +108,17 @@ pub type RenderLineType {
 
 pub type BuilderError {
   /// Returned when not all rows have the same number of columns.
+  ///
+  /// **Why is this an error?** It is not possible to render a rectangular
+  ///                           table if any row has a different number of columns than another.
   InconsistentColumnCountError(expected: Int, got: Int)
+
+  /// Returned when attempting to build a table with no rows.
+  ///
+  /// **Why is this an error?** It is somewhat unclear how to render this, and
+  ///                           is left as an error so callers can handle it
+  ///                           however is best for their application.
+  EmptyTableError
 }
 
 type RenderContext(o) {
@@ -322,6 +332,8 @@ fn builder_error_from_internal(error: InternalBuilderError) {
   case error {
     builder.InconsistentColumnCountError(expected:, got:) ->
       InconsistentColumnCountError(expected:, got:)
+
+    builder.EmptyTableError -> EmptyTableError
   }
 }
 
