@@ -114,6 +114,19 @@ pub fn snapshot_3x3_variable_width_box_drawing_with_rounded_corners_test() {
   )
 }
 
+pub fn snapshot_3x3_variable_width_blank_line_type_test() {
+  tobble.builder()
+  |> tobble.add_row(["", "Wibbles", "Wobbles"])
+  |> tobble.add_row(["Rating", "Better", "Best"])
+  |> tobble.add_row(["Alternative", "Foo", "Bar"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options([
+    tobble.LineTypeRenderOption(tobble.BlankLineType),
+  ])
+  |> birdie.snap("3x3 variable width table, blank decorations")
+}
+
 pub fn snapshot_3x3_fixed_width_from_iterator_test() {
   tobble.builder()
   |> tobble.add_row(["1", "2", "3"])

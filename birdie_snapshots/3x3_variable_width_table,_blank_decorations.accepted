@@ -1,0 +1,10 @@
+---
+version: 1.2.4
+title: 3x3 variable width table, blank decorations
+file: ./test/tobble_test.gleam
+test_name: snapshot_3x3_variable_width_blank_line_type_test
+---
+                Wibbles   Wobbles  
+                                   
+  Rating        Better    Best     
+  Alternative   Foo       Bar      

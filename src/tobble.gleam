@@ -104,6 +104,20 @@ pub type RenderLineType {
   /// +---------+--------------+
   /// ```
   ASCIILineType
+
+  /// Render the table with spaces for the borders.
+  /// Note that this does not strip trailing spaces, the borders that
+  /// you see in other line types are simply replaced with spaces. It
+  /// will, however, remove the top and bottom borders for you.
+  ///
+  /// ```text
+  ///             Output
+  ///
+  ///   Stage 1   Wibble
+  ///   Stage 2   Wobble
+  ///   Stage 3   WibbleWobble
+  /// ```
+  BlankLineType
 }
 
 pub type BuilderError {
@@ -124,6 +138,7 @@ pub type BuilderError {
 type RenderContext(o) {
   RenderContext(
     minimum_column_widths: List(Int),
+    top_and_bottom_borders: Bool,
     lookup_element: fn(TableElement) -> String,
   )
 }
@@ -341,11 +356,9 @@ fn rendered_yielder(
   context: RenderContext(a),
   table: Table,
 ) -> yielder.Yielder(String) {
-  yielder.once(fn() { render_horizontal_rule(context, TopRulePosition) })
+  top_border_yielder(context)
   |> yielder.append(rows_with_header_yielder(context, table.rows))
-  |> yielder.append(
-    yielder.once(fn() { render_horizontal_rule(context, BottomRulePosition) }),
-  )
+  |> yielder.append(bottom_border_yielder(context))
 }
 
 fn column_lengths(rows: rows.Rows(String)) {
@@ -356,6 +369,22 @@ fn column_lengths(rows: rows.Rows(String)) {
     |> result.unwrap(or: 0)
     |> int.max(max)
   })
+}
+
+fn top_border_yielder(context: RenderContext(o)) -> yielder.Yielder(String) {
+  case context.top_and_bottom_borders {
+    False -> yielder.empty()
+    True ->
+      yielder.once(fn() { render_horizontal_rule(context, TopRulePosition) })
+  }
+}
+
+fn bottom_border_yielder(context: RenderContext(o)) -> yielder.Yielder(String) {
+  case context.top_and_bottom_borders {
+    False -> yielder.empty()
+    True ->
+      yielder.once(fn() { render_horizontal_rule(context, BottomRulePosition) })
+  }
 }
 
 fn render_horizontal_rule(
@@ -542,6 +571,7 @@ fn default_render_context(table: Table) -> RenderContext(b) {
   RenderContext(
     minimum_column_widths: column_lengths(table.rows),
     lookup_element: lookup_ascii_table_element,
+    top_and_bottom_borders: True,
   )
 }
 
@@ -567,13 +597,31 @@ fn apply_line_type_render_option(
 ) -> RenderContext(a) {
   case line_type {
     ASCIILineType ->
-      RenderContext(..context, lookup_element: lookup_ascii_table_element)
+      RenderContext(
+        ..context,
+        lookup_element: lookup_ascii_table_element,
+        top_and_bottom_borders: True,
+      )
+
     BoxDrawingCharsLineType ->
-      RenderContext(..context, lookup_element: lookup_box_drawing_table_element)
+      RenderContext(
+        ..context,
+        lookup_element: lookup_box_drawing_table_element,
+        top_and_bottom_borders: True,
+      )
+
     BoxDrawingCharsWithRoundedCornersLineType ->
       RenderContext(
         ..context,
         lookup_element: lookup_box_drawing_rounded_corner_table_element,
+        top_and_bottom_borders: True,
+      )
+
+    BlankLineType ->
+      RenderContext(
+        ..context,
+        lookup_element: lookup_blank_table_element,
+        top_and_bottom_borders: False,
       )
   }
 }
@@ -753,5 +801,21 @@ fn lookup_box_drawing_rounded_corner_table_element(
     TopEndCornerJunctionElement -> "╮"
     BottomStartCornerJunctionElement -> "╰"
     BottomEndCornerJunctionElement -> "╯"
+  }
+}
+
+fn lookup_blank_table_element(element: TableElement) -> String {
+  case element {
+    HorizontalLineElement -> " "
+    VerticalLineElement -> " "
+    FourWayJunctionElement -> " "
+    StartJunctionElement -> " "
+    EndJunctionElement -> " "
+    TopJunctionElement -> " "
+    BottomJunctionElement -> " "
+    TopStartCornerJunctionElement -> " "
+    TopEndCornerJunctionElement -> " "
+    BottomStartCornerJunctionElement -> " "
+    BottomEndCornerJunctionElement -> " "
   }
 }
