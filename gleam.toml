@@ -1,6 +1,6 @@
 name = "tobble"
 description = "A simple table library for Gleam"
-version = "1.0.1"
+version = "1.0.2"
 licences = ["BSD-3-Clause"]
 repository = { type = "github", user = "ollien", repo = "tobble" }
 
