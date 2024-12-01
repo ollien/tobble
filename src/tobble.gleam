@@ -158,8 +158,8 @@ pub fn add_row(to builder: Builder, columns columns: List(String)) -> Builder {
   |> Builder()
 }
 
-/// Build a `Table` from the given `Builder`. If an operation was performed when
-/// constructing the `Builder`, an error will be returned.
+/// Build a `Table` from the given `Builder`. If an invalid operation was
+/// performed when constructing the `Builder`, an error will be returned.
 pub fn build(with builder: Builder) -> Result(Table, BuilderError) {
   builder.inner
   |> builder.to_result()
