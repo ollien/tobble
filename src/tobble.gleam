@@ -60,13 +60,18 @@ pub type RenderOption {
   /// width too small to even fit the table borders). By default, the table
   /// width is unconstrained.
   TableWidthRenderOption(width: Int)
+
   /// Render the table where each column's text has the given width. If a width
   /// less than 1 is given, this will default to 1. By default, columns are as
   /// wide as the longest row within them.
   ColumnWidthRenderOption(width: Int)
+
   /// Render the table with a different style of border
   /// By default, `ASCIILineType` is used.
   LineTypeRenderOption(line_type: RenderLineType)
+
+  /// Render the table without a horizontal rule under the first row.
+  DisableHeaderRenderOption
 }
 
 pub type RenderLineType {
@@ -80,6 +85,7 @@ pub type RenderLineType {
   /// │ Stage 3 │ WibbleWobble │
   /// └─────────┴──────────────┘</code></pre>
   BoxDrawingCharsLineType
+
   /// Renders the table with box drawing characters for the borders, but
   /// with rounded corners.
   ///
@@ -91,6 +97,7 @@ pub type RenderLineType {
   /// │ Stage 3 │ WibbleWobble │
   /// ╰─────────┴──────────────╯</code></pre>
   BoxDrawingCharsWithRoundedCornersLineType
+
   /// Render the table with ASCII characters for the borders.
   /// This is the default setting.
   ///
@@ -138,7 +145,8 @@ pub type BuilderError {
 type RenderContext(o) {
   RenderContext(
     minimum_column_widths: List(Int),
-    top_and_bottom_borders: Bool,
+    top_and_bottom_border_visibility: Visibility,
+    first_row_header_rule_visibility: Visibility,
     lookup_element: fn(TableElement) -> String,
   )
 }
@@ -165,6 +173,11 @@ type HorizontalRulePosition {
 
 type ScaledColumnWidths {
   ScaledColumnWidths(widths: List(Int), extra_width: Int)
+}
+
+type Visibility {
+  Visible
+  Hidden
 }
 
 /// Create a new `Builder` for table generation. Once you have completed
@@ -357,7 +370,7 @@ fn rendered_yielder(
   table: Table,
 ) -> yielder.Yielder(String) {
   top_border_yielder(context)
-  |> yielder.append(rows_with_header_yielder(context, table.rows))
+  |> yielder.append(table_content_yielder(context, table.rows))
   |> yielder.append(bottom_border_yielder(context))
 }
 
@@ -372,17 +385,17 @@ fn column_lengths(rows: rows.Rows(String)) {
 }
 
 fn top_border_yielder(context: RenderContext(o)) -> yielder.Yielder(String) {
-  case context.top_and_bottom_borders {
-    False -> yielder.empty()
-    True ->
+  case context.top_and_bottom_border_visibility {
+    Hidden -> yielder.empty()
+    Visible ->
       yielder.once(fn() { render_horizontal_rule(context, TopRulePosition) })
   }
 }
 
 fn bottom_border_yielder(context: RenderContext(o)) -> yielder.Yielder(String) {
-  case context.top_and_bottom_borders {
-    False -> yielder.empty()
-    True ->
+  case context.top_and_bottom_border_visibility {
+    Hidden -> yielder.empty()
+    Visible ->
       yielder.once(fn() { render_horizontal_rule(context, BottomRulePosition) })
   }
 }
@@ -425,6 +438,16 @@ fn render_horizontal_rule(
     |> string_tree.to_string()
 
   rule
+}
+
+fn table_content_yielder(
+  context: RenderContext(o),
+  rows: rows.Rows(String),
+) -> yielder.Yielder(String) {
+  case context.first_row_header_rule_visibility {
+    Visible -> rows_with_header_yielder(context, rows)
+    Hidden -> rows_yielder(context, rows)
+  }
 }
 
 fn rows_with_header_yielder(
@@ -571,7 +594,8 @@ fn default_render_context(table: Table) -> RenderContext(b) {
   RenderContext(
     minimum_column_widths: column_lengths(table.rows),
     lookup_element: lookup_ascii_table_element,
-    top_and_bottom_borders: True,
+    top_and_bottom_border_visibility: Visible,
+    first_row_header_rule_visibility: Visible,
   )
 }
 
@@ -587,6 +611,7 @@ fn apply_options(
         apply_table_width_render_option(context, width)
       ColumnWidthRenderOption(width) ->
         apply_column_width_render_option(context, width)
+      DisableHeaderRenderOption -> apply_hide_header_render_option(context)
     }
   })
 }
@@ -600,30 +625,36 @@ fn apply_line_type_render_option(
       RenderContext(
         ..context,
         lookup_element: lookup_ascii_table_element,
-        top_and_bottom_borders: True,
+        top_and_bottom_border_visibility: Visible,
       )
 
     BoxDrawingCharsLineType ->
       RenderContext(
         ..context,
         lookup_element: lookup_box_drawing_table_element,
-        top_and_bottom_borders: True,
+        top_and_bottom_border_visibility: Visible,
       )
 
     BoxDrawingCharsWithRoundedCornersLineType ->
       RenderContext(
         ..context,
         lookup_element: lookup_box_drawing_rounded_corner_table_element,
-        top_and_bottom_borders: True,
+        top_and_bottom_border_visibility: Visible,
       )
 
     BlankLineType ->
       RenderContext(
         ..context,
         lookup_element: lookup_blank_table_element,
-        top_and_bottom_borders: False,
+        top_and_bottom_border_visibility: Hidden,
       )
   }
+}
+
+fn apply_hide_header_render_option(
+  context: RenderContext(o),
+) -> RenderContext(o) {
+  RenderContext(..context, first_row_header_rule_visibility: Hidden)
 }
 
 fn apply_table_width_render_option(
