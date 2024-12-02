@@ -280,7 +280,7 @@ pub fn add_row(to builder: Builder, columns columns: List(String)) -> Builder {
 ///   |> tobble.add_row(["Stage 3", "WibbleWobble"])
 ///   |> tobble.build()
 ///
-///   io.println(tobble.render(table))
+/// io.println(tobble.render(table))
 /// ```
 ///
 /// ```gleam
@@ -329,7 +329,7 @@ pub fn build_with_internal(
 ///     |> tobble.add_row(["Stage 3", "WibbleWobble"])
 ///     |> tobble.build()
 ///
-///   io.println(tobble.render(table))
+/// io.println(tobble.render(table))
 /// ```
 ///
 /// ```text
