@@ -29,6 +29,30 @@ pub fn build_does_not_build_failed_builder_test() {
   |> should.equal(tobble.InconsistentColumnCountError(expected: 5, got: 2))
 }
 
+pub fn build_copies_title_from_builder_test() {
+  let rows = [["1", "2", "3"], ["4", "5", "6"]]
+  let builder =
+    rows
+    |> builder.from_list()
+    |> builder.set_title("Numbers")
+
+  tobble.build_with_internal(builder)
+  |> should.be_ok()
+  |> tobble.title()
+  |> should.be_some()
+  |> should.equal("Numbers")
+}
+
+pub fn title_is_empty_if_none_set_test() {
+  let rows = [["1", "2", "3"], ["4", "5", "6"]]
+  let builder = builder.from_list(rows)
+
+  tobble.build_with_internal(builder)
+  |> should.be_ok()
+  |> tobble.title()
+  |> should.be_none()
+}
+
 pub fn snapshot_3x3_fixed_width_test() {
   tobble.builder()
   |> tobble.add_row(["1", "2", "3"])
@@ -212,4 +236,127 @@ pub fn snapshot_3x3_column_width_minimum_width_enforced_test() {
   |> should.be_ok()
   |> tobble.render_with_options(options: [tobble.ColumnWidthRenderOption(0)])
   |> birdie.snap("3x3 with minimum width enforced")
+}
+
+pub fn snapshot_3x3_table_with_implicit_top_title_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.set_title("Numbers")
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render()
+  |> birdie.snap("3x3 with implicit short top title")
+}
+
+pub fn snapshot_3x3_hide_title_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.set_title("Numbers")
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [tobble.HideTitleRenderOption])
+  |> birdie.snap("3x3 with hidden title")
+}
+
+pub fn snapshot_3x3_table_with_top_title_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.set_title("Numbers")
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    tobble.TitlePositionRenderOption(tobble.TopTitlePosition),
+  ])
+  |> birdie.snap("3x3 with short top title")
+}
+
+pub fn snapshot_3x3_table_with_top_multiline_title_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.set_title("Some\nNumbers")
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    tobble.TitlePositionRenderOption(tobble.TopTitlePosition),
+  ])
+  |> birdie.snap("3x3 with short top multiline title")
+}
+
+pub fn snapshot_3x3_table_with_top_title_longer_than_width_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.set_title("These are the first nine numbers")
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    tobble.TableWidthRenderOption(13),
+    tobble.TitlePositionRenderOption(tobble.TopTitlePosition),
+  ])
+  |> birdie.snap("3x3 with top title longer than width")
+}
+
+pub fn snapshot_3x3_table_with_bottom_title_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.set_title("Numbers")
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+  ])
+  |> birdie.snap("3x3 with short bottom title")
+}
+
+pub fn snapshot_3x3_table_with_bottom_multiline_title_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.set_title("Some\nNumbers")
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+  ])
+  |> birdie.snap("3x3 with short bottom multiline title")
+}
+
+pub fn snapshot_3x3_table_with_bottom_title_longer_than_width_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.set_title("These are the first nine numbers")
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    tobble.TableWidthRenderOption(13),
+    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+  ])
+  |> birdie.snap("3x3 with bottom title longer than width")
+}
+
+pub fn snapshot_3x3_table_with_no_title_cannot_render_one_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+  ])
+  |> birdie.snap("3x3 with no title cannot render one")
 }

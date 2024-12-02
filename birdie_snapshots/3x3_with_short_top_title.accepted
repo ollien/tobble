@@ -1,0 +1,13 @@
+---
+version: 1.2.4
+title: 3x3 with short top title
+file: ./test/tobble_test.gleam
+test_name: snapshot_3x3_table_with_top_title_test
+---
+   Numbers   
++---+---+---+
+| 1 | 2 | 3 |
++---+---+---+
+| 4 | 5 | 6 |
+| 7 | 8 | 9 |
++---+---+---+

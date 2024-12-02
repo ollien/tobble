@@ -8,13 +8,18 @@ pub opaque type Builder {
   FailedBuilder(error: BuilderError)
 }
 
+pub type BuiltTable {
+  BuiltTable(rows: rows.Rows(String), title: option.Option(String))
+}
+
 type BuilderInternals {
-  BuilderInternals(rows: List(UnbuiltRow))
+  BuilderInternals(rows: List(UnbuiltRow), title: option.Option(String))
 }
 
 pub type BuilderError {
   InconsistentColumnCountError(expected: Int, got: Int)
   EmptyTableError
+  EmptyTitleError
 }
 
 type UnbuiltRow =
@@ -24,29 +29,32 @@ type StepResult =
   Result(BuilderInternals, BuilderError)
 
 pub fn new() -> Builder {
-  Builder(internals: BuilderInternals(rows: []))
+  Builder(internals: BuilderInternals(rows: [], title: option.None))
 }
 
 pub fn add_row(builder: Builder, columns columns: List(String)) -> Builder {
   build_on(builder, fn(internals) {
     use <- validate_column_count(internals, columns)
 
-    Ok(BuilderInternals(rows: [columns, ..internals.rows]))
+    Ok(BuilderInternals(..internals, rows: [columns, ..internals.rows]))
   })
 }
 
-pub fn to_result(builder: Builder) -> Result(rows.Rows(String), BuilderError) {
-  case ensure_nonempty(builder) {
-    Builder(internals) ->
-      internals.rows
-      |> list.reverse()
-      |> rows.from_lists()
-      |> result.map_error(fn(err) {
-        case err {
-          rows.InconsistentLengthsError(got:, expected:) ->
-            InconsistentColumnCountError(got:, expected:)
-        }
-      })
+pub fn set_title(builder: Builder, title title: String) -> Builder {
+  build_on(builder, fn(internals) {
+    use <- validate_title(title)
+    Ok(BuilderInternals(..internals, title: option.Some(title)))
+  })
+}
+
+pub fn to_result(builder: Builder) -> Result(BuiltTable, BuilderError) {
+  case ensure_nonempty_rows(builder) {
+    Builder(internals) -> {
+      use built_rows <- result.try(build_rows(internals.rows))
+
+      Ok(BuiltTable(rows: built_rows, title: internals.title))
+    }
+
     FailedBuilder(error) -> Error(error)
   }
 }
@@ -54,12 +62,29 @@ pub fn to_result(builder: Builder) -> Result(rows.Rows(String), BuilderError) {
 // from_* are for testing only, in order to help isolate what certain tests test
 @internal
 pub fn from_list(rows: List(List(String))) -> Builder {
-  Builder(internals: BuilderInternals(rows: list.reverse(rows)))
+  Builder(internals: BuilderInternals(
+    rows: list.reverse(rows),
+    title: option.None,
+  ))
 }
 
 @internal
 pub fn from_error(error: BuilderError) -> Builder {
   FailedBuilder(error:)
+}
+
+fn build_rows(
+  unbuilt_rows: List(UnbuiltRow),
+) -> Result(rows.Rows(String), BuilderError) {
+  unbuilt_rows
+  |> list.reverse()
+  |> rows.from_lists()
+  |> result.map_error(fn(err) {
+    case err {
+      rows.InconsistentLengthsError(got:, expected:) ->
+        InconsistentColumnCountError(got:, expected:)
+    }
+  })
 }
 
 fn build_on(
@@ -83,7 +108,7 @@ fn finish_build_step(build_result: StepResult) -> Builder {
   }
 }
 
-fn ensure_nonempty(builder: Builder) -> Builder {
+fn ensure_nonempty_rows(builder: Builder) -> Builder {
   build_on(builder, fn(internals) {
     case internals.rows {
       [] -> Error(EmptyTableError)
@@ -103,6 +128,13 @@ fn validate_column_count(
     option.Some(expected) if expected == num_columns -> then()
     option.Some(expected) ->
       Error(InconsistentColumnCountError(expected:, got: num_columns))
+  }
+}
+
+fn validate_title(title: String, then: fn() -> StepResult) -> StepResult {
+  case title {
+    "" -> Error(EmptyTitleError)
+    _title -> then()
   }
 }
 

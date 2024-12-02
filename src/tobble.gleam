@@ -33,6 +33,7 @@
 
 import gleam/int
 import gleam/list
+import gleam/option
 import gleam/order
 import gleam/result
 import gleam/string
@@ -45,10 +46,10 @@ import tobble/internal/rows
 /// `Table` is the central type of Tobble. It holds the data you wish to display,
 /// without regard for how you render it. These can be built using `builder`/`build`.
 pub opaque type Table {
-  Table(rows: rows.Rows(String))
+  Table(rows: rows.Rows(String), title: option.Option(String))
 }
 
-/// `Builder` is a type used to help you build tables. See `builder()` for more details.
+/// `Builder` is a type used to help you build tables. See `builder` for more details.
 pub opaque type Builder {
   Builder(inner: builder.Builder)
 }
@@ -72,6 +73,13 @@ pub type RenderOption {
 
   /// Render the table without a horizontal rule under the first row.
   DisableHeaderRenderOption
+
+  /// Render a title for the table at the given position. If the table does not have a title set,
+  /// this option is ignored. By default, the title will render at the top.
+  TitlePositionRenderOption(position: TitlePosition)
+
+  /// Render a table that has a title set, but without its title.
+  HideTitleRenderOption
 }
 
 pub type RenderLineType {
@@ -127,11 +135,20 @@ pub type RenderLineType {
   BlankLineType
 }
 
+pub type TitlePosition {
+  /// Place the title above the table
+  TopTitlePosition
+
+  /// Place the title below the table
+  BottomTitlePosition
+}
+
 pub type BuilderError {
   /// Returned when not all rows have the same number of columns.
   ///
   /// **Why is this an error?** It is not possible to render a rectangular
-  ///                           table if any row has a different number of columns than another.
+  ///                           table if any row has a different number of
+  ///                           columns than another.
   InconsistentColumnCountError(expected: Int, got: Int)
 
   /// Returned when attempting to build a table with no rows.
@@ -140,6 +157,12 @@ pub type BuilderError {
   ///                           is left as an error so callers can handle it
   ///                           however is best for their application.
   EmptyTableError
+
+  /// Returned when attempting to build a table with an empty string as the title.
+  ///
+  /// **Why is this an error?** It is somewhat unclear how to render this, and
+  ///                           is likely the result of a bug in your app.
+  EmptyTitleError
 }
 
 type RenderContext(o) {
@@ -147,6 +170,7 @@ type RenderContext(o) {
     minimum_column_widths: List(Int),
     top_and_bottom_border_visibility: Visibility,
     first_row_header_rule_visibility: Visibility,
+    title_options: TitleOptions,
     lookup_element: fn(TableElement) -> String,
   )
 }
@@ -180,6 +204,10 @@ type Visibility {
   Hidden
 }
 
+type TitleOptions {
+  TitleOptions(position: TitlePosition, visibility: Visibility)
+}
+
 /// Create a new `Builder` for table generation. Once you have completed
 /// adding your rows to this with `add_row`, you should call `build` to
 /// generate a `Table`.
@@ -196,12 +224,46 @@ pub fn add_row(to builder: Builder, columns columns: List(String)) -> Builder {
   |> Builder()
 }
 
+/// Set a title for a table that is being built. The title must be a non-empty
+/// string or a `TitleEmptyError` will be returned when `build` is called.
+///
+/// # Example
+///
+/// ```gleam
+/// let assert Ok(table) =
+///   tobble.builder()
+///   |> tobble.set_title("Setup")
+///   |> tobble.add_row(["", "Output"])
+///   |> tobble.add_row(["Stage 1", "Wibble"])
+///   |> tobble.add_row(["Stage 2", "Wobble"])
+///   |> tobble.add_row(["Stage 3", "WibbleWobble"])
+///   |> tobble.build()
+///
+///   io.println(tobble.render(table))
+/// ```
+///
+/// ```gleam
+///          Setup
+/// +---------+--------------+
+/// |         | Output       |
+/// +---------+--------------+
+/// | Stage 1 | Wibble       |
+/// | Stage 2 | Wobble       |
+/// | Stage 3 | WibbleWobble |
+/// +---------+--------------+
+/// ```
+pub fn set_title(to builder: Builder, title title: String) -> Builder {
+  builder.inner
+  |> builder.set_title(title)
+  |> Builder()
+}
+
 /// Build a `Table` from the given `Builder`. If an invalid operation was
 /// performed when constructing the `Builder`, an error will be returned.
 pub fn build(with builder: Builder) -> Result(Table, BuilderError) {
   builder.inner
   |> builder.to_result()
-  |> result.map(fn(rows) { Table(rows:) })
+  |> result.map(fn(built) { Table(rows: built.rows, title: built.title) })
   |> result.map_error(builder_error_from_internal)
 }
 
@@ -218,7 +280,7 @@ pub fn build_with_internal(
 /// # Example
 ///
 /// ```gleam
-/// let assert Ok(ttable) =
+/// let assert Ok(table) =
 ///     tobble.builder()
 ///     |> tobble.add_row(["", "Output"])
 ///     |> tobble.add_row(["Stage 1", "Wibble"])
@@ -356,12 +418,37 @@ pub fn to_list(table: Table) -> List(List(String)) {
   rows.to_lists(table.rows)
 }
 
+/// Get the title of a table, if there is one.
+///
+/// # Example
+///
+/// ```gleam
+/// let assert Ok(table) =
+///   tobble.builder()
+///   |> tobble.set_title("Setup")
+///   |> tobble.add_row(["", "Output"])
+///   |> tobble.add_row(["Stage 1", "Wibble"])
+///   |> tobble.add_row(["Stage 2", "Wobble"])
+///   |> tobble.add_row(["Stage 3", "WibbleWobble"])
+///   |> tobble.build()
+///
+/// io.debug(tobble.title(table))
+/// ```
+///
+/// ```gleam
+/// Some("Setup")
+/// ```
+pub fn title(table: Table) -> option.Option(String) {
+  table.title
+}
+
 fn builder_error_from_internal(error: InternalBuilderError) {
   case error {
     builder.InconsistentColumnCountError(expected:, got:) ->
       InconsistentColumnCountError(expected:, got:)
 
     builder.EmptyTableError -> EmptyTableError
+    builder.EmptyTitleError -> EmptyTitleError
   }
 }
 
@@ -369,9 +456,15 @@ fn rendered_yielder(
   context: RenderContext(a),
   table: Table,
 ) -> yielder.Yielder(String) {
-  top_border_yielder(context)
+  title_yielder(context, table.title, for: TopTitlePosition)
+  |> yielder.append(top_border_yielder(context))
   |> yielder.append(table_content_yielder(context, table.rows))
   |> yielder.append(bottom_border_yielder(context))
+  |> yielder.append(title_yielder(
+    context,
+    table.title,
+    for: BottomTitlePosition,
+  ))
 }
 
 fn column_lengths(rows: rows.Rows(String)) {
@@ -398,6 +491,28 @@ fn bottom_border_yielder(context: RenderContext(o)) -> yielder.Yielder(String) {
     Visible ->
       yielder.once(fn() { render_horizontal_rule(context, BottomRulePosition) })
   }
+}
+
+fn title_yielder(
+  context: RenderContext(o),
+  maybe_title: option.Option(String),
+  for position: TitlePosition,
+) -> yielder.Yielder(String) {
+  maybe_title
+  |> option.map(fn(title) {
+    case context.title_options {
+      TitleOptions(visibility: Visible, position: chosen_position)
+        if chosen_position == position
+      -> {
+        render_title(context, title)
+        |> string.split("\n")
+        |> yielder.from_list()
+      }
+
+      TitleOptions(..) -> yielder.empty()
+    }
+  })
+  |> option.unwrap(or: yielder.empty())
 }
 
 fn render_horizontal_rule(
@@ -438,6 +553,20 @@ fn render_horizontal_rule(
     |> string_tree.to_string()
 
   rule
+}
+
+fn render_title(context: RenderContext(o), title: String) -> String {
+  let num_columns = list.length(context.minimum_column_widths)
+  let width =
+    minimum_decoration_width(with_columns: num_columns)
+    + int.sum(context.minimum_column_widths)
+
+  title
+  |> string_width.limit(
+    to: string_width.Size(rows: string.length(title), columns: width),
+    ellipsis: "",
+  )
+  |> string_width.align(to: width, align: string_width.Center, with: " ")
 }
 
 fn table_content_yielder(
@@ -596,6 +725,7 @@ fn default_render_context(table: Table) -> RenderContext(b) {
     lookup_element: lookup_ascii_table_element,
     top_and_bottom_border_visibility: Visible,
     first_row_header_rule_visibility: Visible,
+    title_options: TitleOptions(position: TopTitlePosition, visibility: Visible),
   )
 }
 
@@ -612,6 +742,9 @@ fn apply_options(
       ColumnWidthRenderOption(width) ->
         apply_column_width_render_option(context, width)
       DisableHeaderRenderOption -> apply_hide_header_render_option(context)
+      TitlePositionRenderOption(position) ->
+        apply_title_position_render_option(context, position)
+      HideTitleRenderOption -> apply_hide_title_render_option(context)
     }
   })
 }
@@ -655,6 +788,23 @@ fn apply_hide_header_render_option(
   context: RenderContext(o),
 ) -> RenderContext(o) {
   RenderContext(..context, first_row_header_rule_visibility: Hidden)
+}
+
+fn apply_title_position_render_option(
+  context: RenderContext(o),
+  position: TitlePosition,
+) -> RenderContext(o) {
+  RenderContext(
+    ..context,
+    title_options: TitleOptions(position: position, visibility: Visible),
+  )
+}
+
+fn apply_hide_title_render_option(context: RenderContext(o)) -> RenderContext(o) {
+  RenderContext(
+    ..context,
+    title_options: TitleOptions(..context.title_options, visibility: Hidden),
+  )
 }
 
 fn apply_table_width_render_option(
@@ -712,7 +862,17 @@ fn column_content_width_for_table_width(
   num_columns num_columns: Int,
   desired_width desired_width: Int,
 ) -> Int {
-  // This is a bit hacky, but we need to account for thw width of the
+  let desired_width =
+    desired_width - minimum_decoration_width(with_columns: num_columns)
+
+  case desired_width <= 0 {
+    False -> desired_width
+    True -> num_columns
+  }
+}
+
+fn minimum_decoration_width(with_columns num_columns: Int) {
+  // This is a bit hacky, but we need to calculate the minimum width to provide
   // decorations on the table. The tables are known to have decorations of
   // width 1, width padding on each side. So, we can determine the width taken
   // up by the decorations by observing that
@@ -725,15 +885,7 @@ fn column_content_width_for_table_width(
   //  - an inner division for each column (num_columns - 1)
   //  - two outer divisions (2)
   //
-  let decoration_width = {
-    num_columns * 2 + { num_columns - 1 } + 2
-  }
-  let desired_width = desired_width - decoration_width
-
-  case desired_width <= 0 {
-    False -> desired_width
-    True -> num_columns
-  }
+  num_columns * 2 + { num_columns - 1 } + 2
 }
 
 fn scale_empty_columns(
