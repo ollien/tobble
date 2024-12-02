@@ -884,6 +884,7 @@ fn apply_table_width_render_option(
 
     order.Lt -> {
       let extra_width = desired_width - total_scaled_width
+
       // Prioritize adding extra width to empty columns, to hopefully display something
       let ScaledColumnWidths(widths: scaled_widths, extra_width:) =
         scale_empty_columns(scaled_widths, extra_width)
@@ -918,10 +919,7 @@ fn column_content_width_for_table_width(
   let desired_width =
     desired_width - minimum_decoration_width(with_columns: num_columns)
 
-  case desired_width <= 0 {
-    False -> desired_width
-    True -> num_columns
-  }
+  int.max(desired_width, num_columns)
 }
 
 fn minimum_decoration_width(with_columns num_columns: Int) {

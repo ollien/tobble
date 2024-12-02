@@ -253,6 +253,22 @@ pub fn snapshot_3x3_column_width_minimum_width_enforced_test() {
   |> birdie.snap("3x3 with minimum width enforced")
 }
 
+pub fn snapshot_3x3_column_width_minimum_width_enforced_when_one_less_than_decoration_width_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    tobble.TableWidthRenderOption(12),
+    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+  ])
+  |> birdie.snap(
+    "3x3 with minimum width enforced when one less than decoration width",
+  )
+}
+
 pub fn snapshot_3x3_table_with_implicit_top_title_test() {
   tobble.builder()
   |> tobble.add_row(["1", "2", "3"])
