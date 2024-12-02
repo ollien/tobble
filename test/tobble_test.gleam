@@ -64,15 +64,30 @@ pub fn snapshot_3x3_fixed_width_test() {
   |> birdie.snap("3x3 fixed width table")
 }
 
-pub fn snapshot_3x3_fixed_width_without_header_test() {
+pub fn snapshot_3x3_fixed_width_without_horizontal_rules_test() {
   tobble.builder()
   |> tobble.add_row(["1", "2", "3"])
   |> tobble.add_row(["4", "5", "6"])
   |> tobble.add_row(["7", "8", "9"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.DisableHeaderRenderOption])
-  |> birdie.snap("3x3 fixed width table without header")
+  |> tobble.render_with_options(options: [
+    tobble.HorizontalRulesRenderOption(tobble.NoHorizontalRules),
+  ])
+  |> birdie.snap("3x3 fixed width table without horizontal rules")
+}
+
+pub fn snapshot_3x3_fixed_width_with_horizontal_rules_on_every_row_test() {
+  tobble.builder()
+  |> tobble.add_row(["1", "2", "3"])
+  |> tobble.add_row(["4", "5", "6"])
+  |> tobble.add_row(["7", "8", "9"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    tobble.HorizontalRulesRenderOption(tobble.EveryRowHasHorizontalRules),
+  ])
+  |> birdie.snap("3x3 fixed width table with horizontal rules on every row")
 }
 
 pub fn snapshot_3x3_variable_width_test() {

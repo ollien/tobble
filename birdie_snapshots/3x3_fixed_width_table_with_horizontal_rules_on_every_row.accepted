@@ -1,0 +1,13 @@
+---
+version: 1.2.4
+title: 3x3 fixed width table with horizontal rules on every row
+file: ./test/tobble_test.gleam
+test_name: snapshot_3x3_fixed_width_with_horizontal_rules_on_every_row_test
+---
++---+---+---+
+| 1 | 2 | 3 |
++---+---+---+
+| 4 | 5 | 6 |
++---+---+---+
+| 7 | 8 | 9 |
++---+---+---+

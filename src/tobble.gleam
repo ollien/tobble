@@ -71,8 +71,9 @@ pub type RenderOption {
   /// By default, `ASCIILineType` is used.
   LineTypeRenderOption(line_type: RenderLineType)
 
-  /// Render the table without a horizontal rule under the first row.
-  DisableHeaderRenderOption
+  /// Changes the way the table renders horizontal rules. See `HorizontalRules` for more details.
+  /// By default, only the first row has a horizontal rule.
+  HorizontalRulesRenderOption(horizontal_rules: HorizontalRules)
 
   /// Render a title for the table at the given position. If the table does not have a title set,
   /// this option is ignored. By default, the title will render at the top.
@@ -120,7 +121,7 @@ pub type RenderLineType {
   /// ```
   ASCIILineType
 
-  /// Render the table with spaces for the borders.
+  /// Renders the table with spaces for the borders.
   /// Note that this does not strip trailing spaces, the borders that
   /// you see in other line types are simply replaced with spaces. It
   /// will, however, remove the top and bottom borders for you.
@@ -141,6 +142,46 @@ pub type TitlePosition {
 
   /// Place the title below the table
   BottomTitlePosition
+}
+
+pub type HorizontalRules {
+  /// Renders the table with only the header having a horizontal rule beneath it. This is the default setting.
+  ///
+  /// ```text
+  /// +---------+--------------+
+  /// |         | Output       |
+  /// +---------+--------------+
+  /// | Stage 1 | Wibble       |
+  /// | Stage 2 | Wobble       |
+  /// | Stage 3 | WibbleWobble |
+  /// +---------+--------------+
+  /// ```
+  HeaderOnlyHorizontalRules
+  /// Renders the table with every row the header having a horizontal rule beneath it.
+  ///
+  /// ```text
+  /// +---------+--------------+
+  /// |         | Output       |
+  /// +---------+--------------+
+  /// | Stage 1 | Wibble       |
+  /// +---------+--------------+
+  /// | Stage 2 | Wobble       |
+  /// +---------+--------------+
+  /// | Stage 3 | WibbleWobble |
+  /// +---------+--------------+
+  /// ```
+  EveryRowHasHorizontalRules
+  /// Renders the table without any horizontal rules interleaved with the table's rows.
+  ///
+  /// ```text
+  /// +---------+--------------+
+  /// |         | Output       |
+  /// | Stage 1 | Wibble       |
+  /// | Stage 2 | Wobble       |
+  /// | Stage 3 | WibbleWobble |
+  /// +---------+--------------+
+  /// ```
+  NoHorizontalRules
 }
 
 pub type BuilderError {
@@ -169,7 +210,7 @@ type RenderContext(o) {
   RenderContext(
     minimum_column_widths: List(Int),
     top_and_bottom_border_visibility: Visibility,
-    first_row_header_rule_visibility: Visibility,
+    horizontal_rules: HorizontalRules,
     title_options: TitleOptions,
     lookup_element: fn(TableElement) -> String,
   )
@@ -573,9 +614,11 @@ fn table_content_yielder(
   context: RenderContext(o),
   rows: rows.Rows(String),
 ) -> yielder.Yielder(String) {
-  case context.first_row_header_rule_visibility {
-    Visible -> rows_with_header_yielder(context, rows)
-    Hidden -> rows_yielder(context, rows)
+  case context.horizontal_rules {
+    HeaderOnlyHorizontalRules -> rows_with_header_yielder(context, rows)
+    EveryRowHasHorizontalRules ->
+      rows_with_horizontal_rules_everywhere_yielder(context, rows)
+    NoHorizontalRules -> rows_yielder(context, rows)
   }
 }
 
@@ -588,14 +631,22 @@ fn rows_with_header_yielder(
     Error(Nil) -> yielder.empty()
     Ok(#(head_row, rest_rows)) -> {
       yielder.append(
-        header_yielder(context, head_row),
+        row_with_horizontal_rule_yielder(context, head_row),
         rows_yielder(context, rest_rows),
       )
     }
   }
 }
 
-fn header_yielder(
+fn rows_with_horizontal_rules_everywhere_yielder(
+  context: RenderContext(o),
+  rows: rows.Rows(String),
+) -> yielder.Yielder(String) {
+  rows_yielder(context, rows)
+  |> yielder.intersperse(render_horizontal_rule(context, CenterRulePosition))
+}
+
+fn row_with_horizontal_rule_yielder(
   context: RenderContext(o),
   column_text: List(String),
 ) -> yielder.Yielder(String) {
@@ -724,7 +775,7 @@ fn default_render_context(table: Table) -> RenderContext(b) {
     minimum_column_widths: column_lengths(table.rows),
     lookup_element: lookup_ascii_table_element,
     top_and_bottom_border_visibility: Visible,
-    first_row_header_rule_visibility: Visible,
+    horizontal_rules: HeaderOnlyHorizontalRules,
     title_options: TitleOptions(position: TopTitlePosition, visibility: Visible),
   )
 }
@@ -741,7 +792,8 @@ fn apply_options(
         apply_table_width_render_option(context, width)
       ColumnWidthRenderOption(width) ->
         apply_column_width_render_option(context, width)
-      DisableHeaderRenderOption -> apply_hide_header_render_option(context)
+      HorizontalRulesRenderOption(rules) ->
+        apply_horizontal_rules_header_option(context, rules)
       TitlePositionRenderOption(position) ->
         apply_title_position_render_option(context, position)
       HideTitleRenderOption -> apply_hide_title_render_option(context)
@@ -784,10 +836,11 @@ fn apply_line_type_render_option(
   }
 }
 
-fn apply_hide_header_render_option(
+fn apply_horizontal_rules_header_option(
   context: RenderContext(o),
+  rules: HorizontalRules,
 ) -> RenderContext(o) {
-  RenderContext(..context, first_row_header_rule_visibility: Hidden)
+  RenderContext(..context, horizontal_rules: rules)
 }
 
 fn apply_title_position_render_option(

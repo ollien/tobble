@@ -1,8 +1,8 @@
 ---
 version: 1.2.4
-title: 3x3 fixed width table without header
+title: 3x3 fixed width table without horizontal rules
 file: ./test/tobble_test.gleam
-test_name: snapshot_3x3_fixed_width_without_header_test
+test_name: snapshot_3x3_fixed_width_without_horizontal_rules_test
 ---
 +---+---+---+
 | 1 | 2 | 3 |
