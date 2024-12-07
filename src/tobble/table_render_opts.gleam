@@ -1,8 +1,12 @@
+//// Configure the way your table is rendered. Every function in this module
+//// will return an `Option` type that can be passed to the render functions
+//// of the `tobble` module.
+
 import gleam/list
 import tobble/internal/render
 
 pub opaque type Option {
-  Option(inner: render.Option)
+  Option(apply: fn(render.Context) -> render.Context)
 }
 
 /// Render the table with a width of, at most, the given width. Note that this
@@ -11,14 +15,14 @@ pub opaque type Option {
 /// width too small to even fit the table borders). By default, the table
 /// width is unconstrained.
 pub fn table_width(width: Int) -> Option {
-  Option(inner: render.TableWidthRenderOption(width:))
+  Option(apply: fn(context) { render.apply_table_width(context, width) })
 }
 
 /// Render the table where each column's text has the given width. If a width
 /// less than 1 is given, this will default to 1. By default, columns are as
 /// wide as the longest row within them.
 pub fn column_width(width: Int) -> Option {
-  Option(inner: render.ColumnWidthRenderOption(width:))
+  Option(apply: fn(context) { render.apply_column_width(context, width) })
 }
 
 /// Render the table with ASCII characters for the borders.
@@ -34,7 +38,9 @@ pub fn column_width(width: Int) -> Option {
 /// +---------+--------------+
 /// ```
 pub fn line_type_ascii() -> Option {
-  Option(inner: render.LineTypeRenderOption(line_type: render.ASCIILineType))
+  Option(apply: fn(context) {
+    render.apply_line_type(context, render.ASCIILineType)
+  })
 }
 
 /// Renders the table with box drawing characters for the borders.
@@ -47,9 +53,9 @@ pub fn line_type_ascii() -> Option {
 /// │ Stage 3 │ WibbleWobble │
 /// └─────────┴──────────────┘</code></pre>
 pub fn line_type_box_drawing_characters() -> Option {
-  Option(inner: render.LineTypeRenderOption(
-    line_type: render.BoxDrawingCharsLineType,
-  ))
+  Option(apply: fn(context) {
+    render.apply_line_type(context, render.BoxDrawingCharsLineType)
+  })
 }
 
 /// Renders the table with box drawing characters for the borders, but
@@ -63,9 +69,12 @@ pub fn line_type_box_drawing_characters() -> Option {
 /// │ Stage 3 │ WibbleWobble │
 /// ╰─────────┴──────────────╯</code></pre>
 pub fn line_type_rounded_corner_box_drawing_characters() -> Option {
-  Option(inner: render.LineTypeRenderOption(
-    line_type: render.BoxDrawingCharsWithRoundedCornersLineType,
-  ))
+  Option(apply: fn(context) {
+    render.apply_line_type(
+      context,
+      render.BoxDrawingCharsWithRoundedCornersLineType,
+    )
+  })
 }
 
 /// Renders the table with spaces for the borders.
@@ -81,23 +90,29 @@ pub fn line_type_rounded_corner_box_drawing_characters() -> Option {
 ///   Stage 3   WibbleWobble
 /// ```
 pub fn line_type_blank() -> Option {
-  Option(inner: render.LineTypeRenderOption(line_type: render.BlankLineType))
+  Option(apply: fn(context) {
+    render.apply_line_type(context, render.BlankLineType)
+  })
 }
 
 /// Place the title above the table. If the table does not have a title set, this option is ignored.
 /// By default, the title will render at the top.
 pub fn title_position_top() -> Option {
-  Option(inner: render.TitlePositionRenderOption(render.TopTitlePosition))
+  Option(apply: fn(context) {
+    render.apply_title_position(context, render.TopTitlePosition)
+  })
 }
 
 /// Place the title above the table. If the table does not have a title set, this option is ignored.
 pub fn title_position_bottom() -> Option {
-  Option(inner: render.TitlePositionRenderOption(render.BottomTitlePosition))
+  Option(apply: fn(context) {
+    render.apply_title_position(context, render.BottomTitlePosition)
+  })
 }
 
 /// Render a table that has a title set, but without its title.
 pub fn hide_title() -> Option {
-  Option(inner: render.HideTitleRenderOption)
+  Option(apply: fn(context) { render.apply_hide_title(context) })
 }
 
 /// Renders the table with only the header having a horizontal rule beneath it. This is the default setting.
@@ -112,9 +127,9 @@ pub fn hide_title() -> Option {
 /// +---------+--------------+
 /// ```
 pub fn horizontal_rules_only_after_header() -> Option {
-  Option(inner: render.HorizontalRulesRenderOption(
-    render.HeaderOnlyHorizontalRules,
-  ))
+  Option(apply: fn(context) {
+    render.apply_horizontal_rules(context, render.HeaderOnlyHorizontalRules)
+  })
 }
 
 /// Renders the table with every row the header having a horizontal rule beneath it.
@@ -131,9 +146,9 @@ pub fn horizontal_rules_only_after_header() -> Option {
 /// +---------+--------------+
 /// ```
 pub fn horizontal_rules_after_every_row() -> Option {
-  Option(inner: render.HorizontalRulesRenderOption(
-    render.EveryRowHasHorizontalRules,
-  ))
+  Option(apply: fn(context) {
+    render.apply_horizontal_rules(context, render.EveryRowHasHorizontalRules)
+  })
 }
 
 /// Renders the table without any horizontal rules interleaved with the table's rows.
@@ -147,10 +162,14 @@ pub fn horizontal_rules_after_every_row() -> Option {
 /// +---------+--------------+
 /// ```
 pub fn no_horizontal_rules() -> Option {
-  Option(inner: render.HorizontalRulesRenderOption(render.NoHorizontalRules))
+  Option(apply: fn(context) {
+    render.apply_horizontal_rules(context, render.NoHorizontalRules)
+  })
 }
 
 @internal
-pub fn unwrap_options(options: List(Option)) {
-  list.map(options, fn(option) { option.inner })
+pub fn apply_options(context: render.Context, options: List(Option)) {
+  list.fold(over: options, from: context, with: fn(context, option) {
+    option.apply(context)
+  })
 }

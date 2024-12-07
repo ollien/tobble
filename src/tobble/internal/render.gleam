@@ -7,31 +7,18 @@ import gleam/string
 import gleam/string_tree
 import gleam/yielder
 import string_width
-import tobble/internal/render/line
 import tobble/internal/rows
 
 /// Internal context for the rendering pipeline to share relevant data
 /// with different parts of the pipeline
-pub type RenderContext {
-  RenderContext(
+pub type Context {
+  Context(
     minimum_column_widths: List(Int),
     top_and_bottom_border_visibility: Visibility,
     horizontal_rules: HorizontalRules,
     title_options: TitleOptions,
-    lookup_line: fn(line.TableLine) -> String,
+    lookup_line: fn(TableLine) -> String,
   )
-}
-
-/// Options that dictate how the table should be rendered. The types used by this type
-/// all have wrappers in the public `table_render_opts` module. These primarily
-/// are separated to help prevent breaking API changes.
-pub type Option {
-  TableWidthRenderOption(width: Int)
-  ColumnWidthRenderOption(width: Int)
-  LineTypeRenderOption(line_type: LineType)
-  HorizontalRulesRenderOption(horizontal_rules: HorizontalRules)
-  TitlePositionRenderOption(position: TitlePosition)
-  HideTitleRenderOption
 }
 
 pub type HorizontalRulePosition {
@@ -71,9 +58,23 @@ pub type HorizontalRules {
   NoHorizontalRules
 }
 
-/// Render a table to a Yielder, using the options from the provided RenderContext.
+pub type TableLine {
+  HorizontalLine
+  VerticalLine
+  FourWayJunction
+  StartJunction
+  EndJunction
+  TopJunction
+  BottomJunction
+  TopStartCornerJunction
+  TopEndCornerJunction
+  BottomStartCornerJunction
+  BottomEndCornerJunction
+}
+
+/// Render a table to a Yielder, using the options from the provided Context.
 pub fn to_yielder(
-  context: RenderContext,
+  context: Context,
   rows: rows.Rows(String),
   title: option.Option(String),
 ) -> yielder.Yielder(String) {
@@ -84,37 +85,120 @@ pub fn to_yielder(
   |> yielder.append(title_yielder(context, title, for: BottomTitlePosition))
 }
 
-/// Get a RenderContext with the default settings applied
-pub fn default_render_context(rows: rows.Rows(String)) -> RenderContext {
-  RenderContext(
+/// Get a Context with the default settings applied
+pub fn default_render_context(rows: rows.Rows(String)) -> Context {
+  Context(
     minimum_column_widths: column_lengths(rows),
-    lookup_line: line.lookup_ascii_table_line,
+    lookup_line: lookup_ascii_table_line,
     top_and_bottom_border_visibility: Visible,
     horizontal_rules: HeaderOnlyHorizontalRules,
     title_options: TitleOptions(position: TopTitlePosition, visibility: Visible),
   )
 }
 
-/// Transform the given render context to one with the supplied options
-pub fn apply_options(
-  context: RenderContext,
-  options: List(Option),
-) -> RenderContext {
-  list.fold(over: options, from: context, with: fn(context, option) {
-    case option {
-      LineTypeRenderOption(line_type) ->
-        apply_line_type_render_option(context, line_type)
-      TableWidthRenderOption(width) ->
-        apply_table_width_render_option(context, width)
-      ColumnWidthRenderOption(width) ->
-        apply_column_width_render_option(context, width)
-      HorizontalRulesRenderOption(rules) ->
-        apply_horizontal_rules_header_option(context, rules)
-      TitlePositionRenderOption(position) ->
-        apply_title_position_render_option(context, position)
-      HideTitleRenderOption -> apply_hide_title_render_option(context)
+/// Set the line type for tables rendered using the given Context
+pub fn apply_line_type(context: Context, line_type: LineType) -> Context {
+  case line_type {
+    ASCIILineType ->
+      Context(
+        ..context,
+        lookup_line: lookup_ascii_table_line,
+        top_and_bottom_border_visibility: Visible,
+      )
+
+    BoxDrawingCharsLineType ->
+      Context(
+        ..context,
+        lookup_line: lookup_box_drawing_table_line,
+        top_and_bottom_border_visibility: Visible,
+      )
+
+    BoxDrawingCharsWithRoundedCornersLineType ->
+      Context(
+        ..context,
+        lookup_line: lookup_box_drawing_rounded_corner_table_line,
+        top_and_bottom_border_visibility: Visible,
+      )
+
+    BlankLineType ->
+      Context(
+        ..context,
+        lookup_line: lookup_blank_table_line,
+        top_and_bottom_border_visibility: Hidden,
+      )
+  }
+}
+
+/// Set where horizontal rules are drawn for tables rendered using the given Context
+pub fn apply_horizontal_rules(
+  context: Context,
+  rules: HorizontalRules,
+) -> Context {
+  Context(..context, horizontal_rules: rules)
+}
+
+pub fn apply_title_position(
+  context: Context,
+  position: TitlePosition,
+) -> Context {
+  Context(
+    ..context,
+    title_options: TitleOptions(position: position, visibility: Visible),
+  )
+}
+
+/// Hide the title in tables drawn with the given context
+pub fn apply_hide_title(context: Context) -> Context {
+  Context(
+    ..context,
+    title_options: TitleOptions(..context.title_options, visibility: Hidden),
+  )
+}
+
+/// Set the width (in characters) of tables drawn with the given context
+pub fn apply_table_width(context: Context, desired_width: Int) -> Context {
+  let desired_width =
+    column_content_width_for_table_width(
+      num_columns: list.length(context.minimum_column_widths),
+      desired_width:,
+    )
+
+  let total_original_width = int.sum(context.minimum_column_widths)
+  let scaled_widths =
+    list.map(context.minimum_column_widths, fn(column_width) {
+      column_width * desired_width / total_original_width
+    })
+
+  let total_scaled_width = int.sum(scaled_widths)
+
+  case int.compare(total_scaled_width, total_original_width) {
+    order.Gt | order.Eq ->
+      Context(..context, minimum_column_widths: scaled_widths)
+
+    order.Lt -> {
+      let extra_width = desired_width - total_scaled_width
+
+      // Prioritize adding extra width to empty columns, to hopefully display something
+      let ScaledColumnWidths(widths: scaled_widths, extra_width:) =
+        scale_empty_columns(scaled_widths, extra_width)
+
+      // ... then redistribute what's left to the other columns
+      let ScaledColumnWidths(widths: scaled_widths, ..) =
+        redistribute_extra_width(scaled_widths, extra_width)
+
+      Context(..context, minimum_column_widths: scaled_widths)
     }
-  })
+  }
+}
+
+/// Set a fixed width (in characters) to columns in tables drawn with the given context
+pub fn apply_column_width(context: Context, desired_width: Int) {
+  Context(
+    ..context,
+    minimum_column_widths: list.map(context.minimum_column_widths, fn(_width) {
+      int.max(1, desired_width)
+    }),
+  )
 }
 
 fn column_lengths(rows: rows.Rows(String)) {
@@ -127,7 +211,7 @@ fn column_lengths(rows: rows.Rows(String)) {
   })
 }
 
-fn top_border_yielder(context: RenderContext) -> yielder.Yielder(String) {
+fn top_border_yielder(context: Context) -> yielder.Yielder(String) {
   case context.top_and_bottom_border_visibility {
     Hidden -> yielder.empty()
     Visible ->
@@ -135,7 +219,7 @@ fn top_border_yielder(context: RenderContext) -> yielder.Yielder(String) {
   }
 }
 
-fn bottom_border_yielder(context: RenderContext) -> yielder.Yielder(String) {
+fn bottom_border_yielder(context: Context) -> yielder.Yielder(String) {
   case context.top_and_bottom_border_visibility {
     Hidden -> yielder.empty()
     Visible ->
@@ -144,7 +228,7 @@ fn bottom_border_yielder(context: RenderContext) -> yielder.Yielder(String) {
 }
 
 fn title_yielder(
-  context: RenderContext,
+  context: Context,
   maybe_title: option.Option(String),
   for position: TitlePosition,
 ) -> yielder.Yielder(String) {
@@ -166,28 +250,28 @@ fn title_yielder(
 }
 
 fn render_horizontal_rule(
-  context: RenderContext,
+  context: Context,
   position: HorizontalRulePosition,
 ) -> String {
   let start_junction = case position {
-    TopRulePosition -> context.lookup_line(line.TopStartCornerJunction)
-    CenterRulePosition -> context.lookup_line(line.StartJunction)
-    BottomRulePosition -> context.lookup_line(line.BottomStartCornerJunction)
+    TopRulePosition -> context.lookup_line(TopStartCornerJunction)
+    CenterRulePosition -> context.lookup_line(StartJunction)
+    BottomRulePosition -> context.lookup_line(BottomStartCornerJunction)
   }
 
   let middle_junction = case position {
-    TopRulePosition -> context.lookup_line(line.TopJunction)
-    CenterRulePosition -> context.lookup_line(line.FourWayJunction)
-    BottomRulePosition -> context.lookup_line(line.BottomJunction)
+    TopRulePosition -> context.lookup_line(TopJunction)
+    CenterRulePosition -> context.lookup_line(FourWayJunction)
+    BottomRulePosition -> context.lookup_line(BottomJunction)
   }
 
   let end_junction = case position {
-    TopRulePosition -> context.lookup_line(line.TopEndCornerJunction)
-    CenterRulePosition -> context.lookup_line(line.EndJunction)
-    BottomRulePosition -> context.lookup_line(line.BottomEndCornerJunction)
+    TopRulePosition -> context.lookup_line(TopEndCornerJunction)
+    CenterRulePosition -> context.lookup_line(EndJunction)
+    BottomRulePosition -> context.lookup_line(BottomEndCornerJunction)
   }
 
-  let horizontal = context.lookup_line(line.HorizontalLine)
+  let horizontal = context.lookup_line(HorizontalLine)
 
   let rule =
     context.minimum_column_widths
@@ -204,7 +288,7 @@ fn render_horizontal_rule(
   rule
 }
 
-fn render_title(context: RenderContext, title: String) -> String {
+fn render_title(context: Context, title: String) -> String {
   let num_columns = list.length(context.minimum_column_widths)
   let width =
     minimum_decoration_width(with_columns: num_columns)
@@ -219,7 +303,7 @@ fn render_title(context: RenderContext, title: String) -> String {
 }
 
 fn table_content_yielder(
-  context: RenderContext,
+  context: Context,
   rows: rows.Rows(String),
 ) -> yielder.Yielder(String) {
   case context.horizontal_rules {
@@ -231,7 +315,7 @@ fn table_content_yielder(
 }
 
 fn rows_with_header_yielder(
-  context: RenderContext,
+  context: Context,
   rows: rows.Rows(String),
 ) -> yielder.Yielder(String) {
   case rows.pop_row(rows) {
@@ -247,7 +331,7 @@ fn rows_with_header_yielder(
 }
 
 fn rows_with_horizontal_rules_everywhere_yielder(
-  context: RenderContext,
+  context: Context,
   rows: rows.Rows(String),
 ) -> yielder.Yielder(String) {
   rows_yielder(context, rows)
@@ -255,7 +339,7 @@ fn rows_with_horizontal_rules_everywhere_yielder(
 }
 
 fn row_with_horizontal_rule_yielder(
-  context: RenderContext,
+  context: Context,
   column_text: List(String),
 ) -> yielder.Yielder(String) {
   yielder.append(
@@ -265,7 +349,7 @@ fn row_with_horizontal_rule_yielder(
 }
 
 fn rows_yielder(
-  context: RenderContext,
+  context: Context,
   rows: rows.Rows(String),
 ) -> yielder.Yielder(String) {
   yielder.unfold(rows, fn(remaining_rows) {
@@ -280,7 +364,7 @@ fn rows_yielder(
 }
 
 fn row_yielder(
-  context: RenderContext,
+  context: Context,
   column_text: List(String),
 ) -> yielder.Yielder(String) {
   let column_lines =
@@ -308,13 +392,10 @@ fn row_yielder(
   })
 }
 
-fn render_visual_row(
-  context: RenderContext,
-  column_text: List(String),
-) -> String {
-  let start_separator = context.lookup_line(line.VerticalLine) <> " "
-  let center_separator = " " <> context.lookup_line(line.VerticalLine) <> " "
-  let end_separator = " " <> context.lookup_line(line.VerticalLine)
+fn render_visual_row(context: Context, column_text: List(String)) -> String {
+  let start_separator = context.lookup_line(VerticalLine) <> " "
+  let center_separator = " " <> context.lookup_line(VerticalLine) <> " "
+  let end_separator = " " <> context.lookup_line(VerticalLine)
 
   column_text
   |> list.map2(context.minimum_column_widths, fn(column, width) {
@@ -375,112 +456,6 @@ fn max_length(lists: List(a), with get_length: fn(a) -> Int) -> Result(Int, Nil)
       |> Ok()
     }
   }
-}
-
-fn apply_line_type_render_option(
-  context: RenderContext,
-  line_type: LineType,
-) -> RenderContext {
-  case line_type {
-    ASCIILineType ->
-      RenderContext(
-        ..context,
-        lookup_line: line.lookup_ascii_table_line,
-        top_and_bottom_border_visibility: Visible,
-      )
-
-    BoxDrawingCharsLineType ->
-      RenderContext(
-        ..context,
-        lookup_line: line.lookup_box_drawing_table_line,
-        top_and_bottom_border_visibility: Visible,
-      )
-
-    BoxDrawingCharsWithRoundedCornersLineType ->
-      RenderContext(
-        ..context,
-        lookup_line: line.lookup_box_drawing_rounded_corner_table_line,
-        top_and_bottom_border_visibility: Visible,
-      )
-
-    BlankLineType ->
-      RenderContext(
-        ..context,
-        lookup_line: line.lookup_blank_table_line,
-        top_and_bottom_border_visibility: Hidden,
-      )
-  }
-}
-
-fn apply_horizontal_rules_header_option(
-  context: RenderContext,
-  rules: HorizontalRules,
-) -> RenderContext {
-  RenderContext(..context, horizontal_rules: rules)
-}
-
-fn apply_title_position_render_option(
-  context: RenderContext,
-  position: TitlePosition,
-) -> RenderContext {
-  RenderContext(
-    ..context,
-    title_options: TitleOptions(position: position, visibility: Visible),
-  )
-}
-
-fn apply_hide_title_render_option(context: RenderContext) -> RenderContext {
-  RenderContext(
-    ..context,
-    title_options: TitleOptions(..context.title_options, visibility: Hidden),
-  )
-}
-
-fn apply_table_width_render_option(
-  context: RenderContext,
-  desired_width: Int,
-) -> RenderContext {
-  let desired_width =
-    column_content_width_for_table_width(
-      num_columns: list.length(context.minimum_column_widths),
-      desired_width:,
-    )
-
-  let total_original_width = int.sum(context.minimum_column_widths)
-  let scaled_widths =
-    list.map(context.minimum_column_widths, fn(column_width) {
-      column_width * desired_width / total_original_width
-    })
-
-  let total_scaled_width = int.sum(scaled_widths)
-
-  case int.compare(total_scaled_width, total_original_width) {
-    order.Gt | order.Eq ->
-      RenderContext(..context, minimum_column_widths: scaled_widths)
-
-    order.Lt -> {
-      let extra_width = desired_width - total_scaled_width
-
-      // Prioritize adding extra width to empty columns, to hopefully display something
-      let ScaledColumnWidths(widths: scaled_widths, extra_width:) =
-        scale_empty_columns(scaled_widths, extra_width)
-
-      // ... then redistribute what's left to the other columns
-      let ScaledColumnWidths(widths: scaled_widths, ..) =
-        redistribute_extra_width(scaled_widths, extra_width)
-
-      RenderContext(..context, minimum_column_widths: scaled_widths)
-    }
-  }
-}
-
-fn apply_column_width_render_option(context: RenderContext, desired_width: Int) {
-  RenderContext(
-    ..context,
-    minimum_column_widths: list.map(context.minimum_column_widths, fn(_width) {
-      int.max(1, desired_width)
-    }),
-  )
 }
 
 // Turn the desired width from the option into one that includes space for table decorations
@@ -559,4 +534,68 @@ fn do_redistribute_extra_width(
     )
 
   ScaledColumnWidths(widths: new_widths, extra_width:)
+}
+
+fn lookup_ascii_table_line(element: TableLine) -> String {
+  case element {
+    HorizontalLine -> "-"
+    VerticalLine -> "|"
+    FourWayJunction -> "+"
+    StartJunction -> "+"
+    EndJunction -> "+"
+    TopJunction -> "+"
+    BottomJunction -> "+"
+    TopStartCornerJunction -> "+"
+    TopEndCornerJunction -> "+"
+    BottomStartCornerJunction -> "+"
+    BottomEndCornerJunction -> "+"
+  }
+}
+
+fn lookup_box_drawing_table_line(element: TableLine) -> String {
+  case element {
+    HorizontalLine -> "─"
+    VerticalLine -> "│"
+    FourWayJunction -> "┼"
+    StartJunction -> "├"
+    EndJunction -> "┤"
+    TopJunction -> "┬"
+    BottomJunction -> "┴"
+    TopStartCornerJunction -> "┌"
+    TopEndCornerJunction -> "┐"
+    BottomStartCornerJunction -> "└"
+    BottomEndCornerJunction -> "┘"
+  }
+}
+
+fn lookup_box_drawing_rounded_corner_table_line(element: TableLine) -> String {
+  case element {
+    HorizontalLine -> "─"
+    VerticalLine -> "│"
+    FourWayJunction -> "┼"
+    StartJunction -> "├"
+    EndJunction -> "┤"
+    TopJunction -> "┬"
+    BottomJunction -> "┴"
+    TopStartCornerJunction -> "╭"
+    TopEndCornerJunction -> "╮"
+    BottomStartCornerJunction -> "╰"
+    BottomEndCornerJunction -> "╯"
+  }
+}
+
+fn lookup_blank_table_line(element: TableLine) -> String {
+  case element {
+    HorizontalLine -> " "
+    VerticalLine -> " "
+    FourWayJunction -> " "
+    StartJunction -> " "
+    EndJunction -> " "
+    TopJunction -> " "
+    BottomJunction -> " "
+    TopStartCornerJunction -> " "
+    TopEndCornerJunction -> " "
+    BottomStartCornerJunction -> " "
+    BottomEndCornerJunction -> " "
+  }
 }

@@ -204,10 +204,8 @@ pub fn render_iter(
   table table: Table,
   options options: List(table_render_opts.Option),
 ) -> yielder.Yielder(String) {
-  let options = table_render_opts.unwrap_options(options)
-
   render.default_render_context(table.rows)
-  |> render.apply_options(options)
+  |> table_render_opts.apply_options(options)
   |> render.to_yielder(table.rows, table.title)
 }
 
@@ -248,10 +246,8 @@ pub fn render_with_options(
   table table: Table,
   options options: List(table_render_opts.Option),
 ) -> String {
-  let options = table_render_opts.unwrap_options(options)
-
   render.default_render_context(table.rows)
-  |> render.apply_options(options)
+  |> table_render_opts.apply_options(options)
   |> render.to_yielder(table.rows, table.title)
   |> yielder.map(string_tree.from_string)
   |> yielder.to_list()
