@@ -11,7 +11,7 @@ import tobble/internal/rows
 
 /// Internal context for the rendering pipeline to share relevant data
 /// with different parts of the pipeline
-pub type Context {
+pub opaque type Context {
   Context(
     minimum_column_widths: List(Int),
     top_and_bottom_border_visibility: Visibility,
@@ -29,15 +29,6 @@ pub type HorizontalRulePosition {
 
 pub type ScaledColumnWidths {
   ScaledColumnWidths(widths: List(Int), extra_width: Int)
-}
-
-pub type Visibility {
-  Visible
-  Hidden
-}
-
-pub type TitleOptions {
-  TitleOptions(position: TitlePosition, visibility: Visibility)
 }
 
 pub type LineType {
@@ -58,7 +49,16 @@ pub type HorizontalRules {
   NoHorizontalRules
 }
 
-pub type TableLine {
+pub type Visibility {
+  Visible
+  Hidden
+}
+
+type TitleOptions {
+  TitleOptions(position: TitlePosition, visibility: Visibility)
+}
+
+type TableLine {
   HorizontalLine
   VerticalLine
   FourWayJunction
