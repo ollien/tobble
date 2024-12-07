@@ -10,6 +10,8 @@ import string_width
 import tobble/internal/render/line
 import tobble/internal/rows
 
+/// Internal context for the rendering pipeline to share relevant data
+/// with different parts of the pipeline
 pub type RenderContext {
   RenderContext(
     minimum_column_widths: List(Int),
@@ -18,6 +20,18 @@ pub type RenderContext {
     title_options: TitleOptions,
     lookup_line: fn(line.TableLine) -> String,
   )
+}
+
+/// Options that dictate how the table should be rendered. The types used by this type
+/// all have wrappers in the public `table_render_opts` module. These primarily
+/// are separated to help prevent breaking API changes.
+pub type Option {
+  TableWidthRenderOption(width: Int)
+  ColumnWidthRenderOption(width: Int)
+  LineTypeRenderOption(line_type: LineType)
+  HorizontalRulesRenderOption(horizontal_rules: HorizontalRules)
+  TitlePositionRenderOption(position: TitlePosition)
+  HideTitleRenderOption
 }
 
 pub type HorizontalRulePosition {
@@ -39,15 +53,6 @@ pub type TitleOptions {
   TitleOptions(position: TitlePosition, visibility: Visibility)
 }
 
-pub type Option {
-  TableWidthRenderOption(width: Int)
-  ColumnWidthRenderOption(width: Int)
-  LineTypeRenderOption(line_type: LineType)
-  HorizontalRulesRenderOption(horizontal_rules: HorizontalRules)
-  TitlePositionRenderOption(position: TitlePosition)
-  HideTitleRenderOption
-}
-
 pub type LineType {
   BoxDrawingCharsLineType
   BoxDrawingCharsWithRoundedCornersLineType
@@ -66,6 +71,7 @@ pub type HorizontalRules {
   NoHorizontalRules
 }
 
+/// Render a table to a Yielder, using the options from the provided RenderContext.
 pub fn to_yielder(
   context: RenderContext,
   rows: rows.Rows(String),
@@ -78,6 +84,7 @@ pub fn to_yielder(
   |> yielder.append(title_yielder(context, title, for: BottomTitlePosition))
 }
 
+/// Get a RenderContext with the default settings applied
 pub fn default_render_context(rows: rows.Rows(String)) -> RenderContext {
   RenderContext(
     minimum_column_widths: column_lengths(rows),
@@ -88,6 +95,7 @@ pub fn default_render_context(rows: rows.Rows(String)) -> RenderContext {
   )
 }
 
+/// Transform the given render context to one with the supplied options
 pub fn apply_options(
   context: RenderContext,
   options: List(Option),
