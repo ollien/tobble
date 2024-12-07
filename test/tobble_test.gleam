@@ -5,6 +5,7 @@ import gleeunit
 import gleeunit/should
 import tobble
 import tobble/internal/builder
+import tobble/table_render_opts
 
 pub fn main() {
   gleeunit.main()
@@ -72,7 +73,7 @@ pub fn snapshot_3x3_fixed_width_without_horizontal_rules_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.HorizontalRulesRenderOption(tobble.NoHorizontalRules),
+    table_render_opts.no_horizontal_rules(),
   ])
   |> birdie.snap("3x3 fixed width table without horizontal rules")
 }
@@ -85,7 +86,7 @@ pub fn snapshot_3x3_fixed_width_with_horizontal_rules_on_every_row_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.HorizontalRulesRenderOption(tobble.EveryRowHasHorizontalRules),
+    table_render_opts.horizontal_rules_after_every_row(),
   ])
   |> birdie.snap("3x3 fixed width table with horizontal rules on every row")
 }
@@ -142,7 +143,7 @@ pub fn snapshot_3x3_variable_width_box_drawing_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options([
-    tobble.LineTypeRenderOption(tobble.BoxDrawingCharsLineType),
+    table_render_opts.line_type_box_drawing_characters(),
   ])
   |> birdie.snap("3x3 variable width table, box drawing chars")
 }
@@ -155,9 +156,7 @@ pub fn snapshot_3x3_variable_width_box_drawing_with_rounded_corners_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options([
-    tobble.LineTypeRenderOption(
-      tobble.BoxDrawingCharsWithRoundedCornersLineType,
-    ),
+    table_render_opts.line_type_rounded_corner_box_drawing_characters(),
   ])
   |> birdie.snap(
     "3x3 variable width table, box drawing chars with rounded corners",
@@ -171,9 +170,7 @@ pub fn snapshot_3x3_variable_width_blank_line_type_test() {
   |> tobble.add_row(["Alternative", "Foo", "Bar"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options([
-    tobble.LineTypeRenderOption(tobble.BlankLineType),
-  ])
+  |> tobble.render_with_options([table_render_opts.line_type_blank()])
   |> birdie.snap("3x3 variable width table, blank decorations")
 }
 
@@ -201,7 +198,7 @@ pub fn snapshot_3x3_scaled_width_test() {
   |> tobble.add_row(["3", "Wobble", "An alternative to 'bar' in Gleam"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.TableWidthRenderOption(32)])
+  |> tobble.render_with_options(options: [table_render_opts.table_width(32)])
   |> birdie.snap("3x3 scaled width table")
 }
 
@@ -216,7 +213,7 @@ pub fn snapshot_3x3_scaled_width_too_small_gives_one_char_per_column_test() {
   |> tobble.add_row(["3", "Wobble", "An alternative to 'bar' in Gleam"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.TableWidthRenderOption(3)])
+  |> tobble.render_with_options(options: [table_render_opts.table_width(3)])
   |> birdie.snap("3x3 scaled width table, desired width too small")
 }
 
@@ -227,7 +224,7 @@ pub fn snapshot_3x3_column_width_grown_test() {
   |> tobble.add_row(["7", "8", "9"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.ColumnWidthRenderOption(10)])
+  |> tobble.render_with_options(options: [table_render_opts.column_width(10)])
   |> birdie.snap("3x3 with 10 wide columns")
 }
 
@@ -238,7 +235,7 @@ pub fn snapshot_3x3_column_width_grown_shrunk_test() {
   |> tobble.add_row(["7777777", "88888888", "999999999"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.ColumnWidthRenderOption(3)])
+  |> tobble.render_with_options(options: [table_render_opts.column_width(3)])
   |> birdie.snap("3x3 with 3 wide columns")
 }
 
@@ -249,7 +246,7 @@ pub fn snapshot_3x3_column_width_minimum_width_enforced_test() {
   |> tobble.add_row(["7777777", "88888888", "999999999"])
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.ColumnWidthRenderOption(0)])
+  |> tobble.render_with_options(options: [table_render_opts.column_width(0)])
   |> birdie.snap("3x3 with minimum width enforced")
 }
 
@@ -261,8 +258,8 @@ pub fn snapshot_3x3_column_width_minimum_width_enforced_when_one_less_than_decor
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.TableWidthRenderOption(12),
-    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+    table_render_opts.table_width(12),
+    table_render_opts.title_position_bottom(),
   ])
   |> birdie.snap(
     "3x3 with minimum width enforced when one less than decoration width",
@@ -289,7 +286,7 @@ pub fn snapshot_3x3_hide_title_test() {
   |> tobble.set_title("Numbers")
   |> tobble.build()
   |> should.be_ok()
-  |> tobble.render_with_options(options: [tobble.HideTitleRenderOption])
+  |> tobble.render_with_options(options: [table_render_opts.hide_title()])
   |> birdie.snap("3x3 with hidden title")
 }
 
@@ -302,7 +299,7 @@ pub fn snapshot_3x3_table_with_top_title_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.TitlePositionRenderOption(tobble.TopTitlePosition),
+    table_render_opts.title_position_top(),
   ])
   |> birdie.snap("3x3 with short top title")
 }
@@ -316,7 +313,7 @@ pub fn snapshot_3x3_table_with_top_multiline_title_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.TitlePositionRenderOption(tobble.TopTitlePosition),
+    table_render_opts.title_position_top(),
   ])
   |> birdie.snap("3x3 with short top multiline title")
 }
@@ -330,8 +327,8 @@ pub fn snapshot_3x3_table_with_top_title_longer_than_width_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.TableWidthRenderOption(13),
-    tobble.TitlePositionRenderOption(tobble.TopTitlePosition),
+    table_render_opts.table_width(13),
+    table_render_opts.title_position_top(),
   ])
   |> birdie.snap("3x3 with top title longer than width")
 }
@@ -345,7 +342,7 @@ pub fn snapshot_3x3_table_with_bottom_title_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+    table_render_opts.title_position_bottom(),
   ])
   |> birdie.snap("3x3 with short bottom title")
 }
@@ -359,7 +356,7 @@ pub fn snapshot_3x3_table_with_bottom_multiline_title_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+    table_render_opts.title_position_bottom(),
   ])
   |> birdie.snap("3x3 with short bottom multiline title")
 }
@@ -373,8 +370,8 @@ pub fn snapshot_3x3_table_with_bottom_title_longer_than_width_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.TableWidthRenderOption(13),
-    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+    table_render_opts.table_width(13),
+    table_render_opts.title_position_bottom(),
   ])
   |> birdie.snap("3x3 with bottom title longer than width")
 }
@@ -387,7 +384,7 @@ pub fn snapshot_3x3_table_with_no_title_cannot_render_one_test() {
   |> tobble.build()
   |> should.be_ok()
   |> tobble.render_with_options(options: [
-    tobble.TitlePositionRenderOption(tobble.BottomTitlePosition),
+    table_render_opts.title_position_bottom(),
   ])
   |> birdie.snap("3x3 with no title cannot render one")
 }
