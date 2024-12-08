@@ -39,7 +39,7 @@ pub fn main() {
 ## Installation
 
 ```sh
-gleam add tobble@1
+gleam add tobble@2
 ```
 
 Further documentation can be found at <https://hexdocs.pm/tobble>.
