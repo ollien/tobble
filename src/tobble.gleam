@@ -178,12 +178,12 @@ pub fn render(table table: Table) -> String {
 ///
 /// ```gleam
 /// let assert Ok(table) =
-/// tobble.builder()
-/// |> tobble.add_row(["", "Output"])
-/// |> tobble.add_row(["Stage 1", "Wibble"])
-/// |> tobble.add_row(["Stage 2", "Wobble"])
-/// |> tobble.add_row(["Stage 3", "WibbleWobble"])
-/// |> tobble.build()
+///   tobble.builder()
+///   |> tobble.add_row(["", "Output"])
+///   |> tobble.add_row(["Stage 1", "Wibble"])
+///   |> tobble.add_row(["Stage 2", "Wobble"])
+///   |> tobble.add_row(["Stage 3", "WibbleWobble"])
+///   |> tobble.build()
 ///
 ///
 /// table
@@ -226,8 +226,9 @@ pub fn render_iter(
 /// io.println(
 ///   tobble.render_with_options(table, options: [
 ///     table_render_opts.column_width(6),
-///   ]),
-/// )
+///     table_render_opts.horizontal_rules_after_every_row(),
+/// ]),
+///)
 /// ```
 ///
 /// ```text
@@ -236,12 +237,13 @@ pub fn render_iter(
 /// +--------+--------+
 /// | Stage  | Wibble |
 /// | 1      |        |
+/// +--------+--------+
 /// | Stage  | Wobble |
 /// | 2      |        |
+/// +--------+--------+
 /// | Stage  | Wibble |
 /// | 3      | Wobble |
 /// +--------+--------+
-/// ```
 pub fn render_with_options(
   table table: Table,
   options options: List(table_render_opts.Option),
