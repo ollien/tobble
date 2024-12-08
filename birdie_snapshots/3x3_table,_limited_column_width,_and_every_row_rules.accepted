@@ -1,0 +1,18 @@
+---
+version: 1.2.4
+title: 3x3 table, limited column width, and every row rules
+file: ./test/tobble_test.gleam
+test_name: snapshot_3x3_table_limited_column_width_and_every_row_rules_test
+---
++--------+--------+
+|        | Output |
++--------+--------+
+| Stage  | Wibble |
+| 1      |        |
++--------+--------+
+| Stage  | Wobble |
+| 2      |        |
++--------+--------+
+| Stage  | Wibble |
+| 3      | Wobble |
++--------+--------+
