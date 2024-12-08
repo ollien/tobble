@@ -209,9 +209,9 @@ pub fn render_iter(
   |> render.to_yielder(table.rows, table.title)
 }
 
-/// Render the given table to a `String`, with extra options. Note that options
-/// are applied in order, so if duplicate or conflicting options are given, the
-/// last one will win.
+/// Render the given table to a `String`, with extra options (found in
+/// `tobble/table_render_opts`). Note that options are applied in order, so if
+/// duplicate or conflicting options are given, the last one will win.
 ///
 ///
 /// ```gleam
@@ -225,7 +225,7 @@ pub fn render_iter(
 ///
 /// io.println(
 ///   tobble.render_with_options(table, options: [
-///     tobble.ColumnWidthRenderOption(6),
+///     table_render_opts.column_width(6),
 ///   ]),
 /// )
 /// ```
