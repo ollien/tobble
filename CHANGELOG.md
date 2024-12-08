@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2024-12-07
+
+### Changed
+
+- Options are now functions in the `tobble/table_render_opts` module, to facilitate future options expansion
+
+### Fixed
+
+- Fixed a bug where the `horizontal_rules_after_every_row` option (formerly `EveryRowHasHorizontalRules`) would draw a
+horizontal rule between wrapped rows
+
 ## [1.1.0] - 2024-12-01
 
 ### Added
@@ -33,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial project release
 
-[unreleased]: https://github.com/ollien/tobblecompare/v1.1.0...HEAD
+[unreleased]: https://github.com/ollien/tobblecompare/v2.0.0...HEAD
+[2.0.0]: https://github.com/ollien/tobblecompare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/ollien/tobble/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/ollien/tobble/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/ollien/tobble/compare/v1.0.0...v1.0.1
