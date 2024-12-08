@@ -310,7 +310,7 @@ fn table_content_yielder(
     HeaderOnlyHorizontalRules -> rows_with_header_yielder(context, rows)
     EveryRowHasHorizontalRules ->
       rows_with_horizontal_rules_everywhere_yielder(context, rows)
-    NoHorizontalRules -> rows_yielder(context, rows)
+    NoHorizontalRules -> visual_rows_yielder(context, rows)
   }
 }
 
@@ -324,7 +324,7 @@ fn rows_with_header_yielder(
     Ok(#(head_row, rest_rows)) -> {
       yielder.append(
         row_with_horizontal_rule_yielder(context, head_row),
-        rows_yielder(context, rest_rows),
+        visual_rows_yielder(context, rest_rows),
       )
     }
   }
@@ -334,8 +334,11 @@ fn rows_with_horizontal_rules_everywhere_yielder(
   context: Context,
   rows: rows.Rows(String),
 ) -> yielder.Yielder(String) {
-  rows_yielder(context, rows)
-  |> yielder.intersperse(render_horizontal_rule(context, CenterRulePosition))
+  grouped_rows_yielder(context, rows)
+  |> yielder.intersperse(
+    yielder.once(fn() { render_horizontal_rule(context, CenterRulePosition) }),
+  )
+  |> yielder.flatten()
 }
 
 fn row_with_horizontal_rule_yielder(
@@ -348,10 +351,15 @@ fn row_with_horizontal_rule_yielder(
   )
 }
 
-fn rows_yielder(
+fn visual_rows_yielder(context: Context, rows: rows.Rows(String)) {
+  // These are visual representations, so flatten the group
+  yielder.flatten(grouped_rows_yielder(context, rows))
+}
+
+fn grouped_rows_yielder(
   context: Context,
   rows: rows.Rows(String),
-) -> yielder.Yielder(String) {
+) -> yielder.Yielder(yielder.Yielder(String)) {
   yielder.unfold(rows, fn(remaining_rows) {
     case rows.pop_row(remaining_rows) {
       Error(Nil) -> yielder.Done
@@ -360,7 +368,6 @@ fn rows_yielder(
       }
     }
   })
-  |> yielder.flatten()
 }
 
 fn row_yielder(

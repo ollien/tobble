@@ -388,3 +388,18 @@ pub fn snapshot_3x3_table_with_no_title_cannot_render_one_test() {
   ])
   |> birdie.snap("3x3 with no title cannot render one")
 }
+
+pub fn snapshot_3x3_table_limited_column_width_and_every_row_rules_test() {
+  tobble.builder()
+  |> tobble.add_row(["", "Output"])
+  |> tobble.add_row(["Stage 1", "Wibble"])
+  |> tobble.add_row(["Stage 2", "Wobble"])
+  |> tobble.add_row(["Stage 3", "WibbleWobble"])
+  |> tobble.build()
+  |> should.be_ok()
+  |> tobble.render_with_options(options: [
+    table_render_opts.column_width(6),
+    table_render_opts.horizontal_rules_after_every_row(),
+  ])
+  |> birdie.snap("3x3 table, limited column width, and every row rules")
+}
