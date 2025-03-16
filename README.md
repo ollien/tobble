@@ -46,5 +46,5 @@ Further documentation can be found at <https://hexdocs.pm/tobble>.
 
 ## Development
 
-Tobble is built using Gleam 1.6. If you would like to hack on Tobble, you
+Tobble is built using Gleam 1.9. If you would like to hack on Tobble, you
 can run the tests with `gleam test`.
